@@ -6,215 +6,207 @@ let lastCheatSheet = "";
 let recognition;
 let isRecording = false;
 
-// 効果音のセットアップ
+// 設定の復元
+let isTTSEnabled = localStorage.getItem('tama_tts_enabled') !== 'false';
+let isSpeedMode = localStorage.getItem('tama_speed_mode') === 'true'; 
+let currentAudio = null;
+
 const seStart = new Audio('start.mp3');
 const seReceive = new Audio('receive.mp3');
 
-// ▼▼ 音声（TTS）のON/OFF状態をローカルストレージから取得（デフォルトはON） ▼▼
-let isTTSEnabled = localStorage.getItem('tama_tts_enabled') !== 'false';
+document.addEventListener('DOMContentLoaded', () => {
+    updateTTSButton();
+    updateModeButton();
+});
 
-// 画面読み込み時にボタンの見た目を更新
-document.addEventListener('DOMContentLoaded', updateTTSUI);
+// ▼▼▼ モード切替（AI会話 ⇔ 爆速DB） ▼▼▼
+function toggleMode() {
+    isSpeedMode = !isSpeedMode;
+    localStorage.setItem('tama_speed_mode', isSpeedMode);
+    updateModeButton();
+}
 
-// トグルボタンの処理
+function updateModeButton() {
+    const btn = document.getElementById('mode-toggle');
+    const lbl = document.getElementById('mode-label');
+    if (isSpeedMode) {
+        btn.innerText = "⚡";
+        btn.classList.add('speed-on'); 
+        lbl.innerText = "爆速モード";
+    } else {
+        btn.innerText = "💬";
+        btn.classList.remove('speed-on');
+        lbl.innerText = "会話モード";
+    }
+}
+
+// ▼▼▼ 賢いステータス表ジェネレーター（Pro版） ▼▼▼
+function createDataTable(infoText) {
+    // 空白行を除去して配列化
+    const lines = infoText.split('\n').map(l => l.trim()).filter(l => l !== "");
+    let html = '<table class="poke-table"><tbody>';
+    
+    for (let i = 0; i < lines.length; i++) {
+        // コロンや「：」が含まれている場合は、そこで分割して左右のセルにする
+        if (lines[i].includes(':') || lines[i].includes('：')) {
+            let parts = lines[i].split(/[:：]/);
+            html += `<tr><th>${parts[0].trim()}</th><td>${parts.slice(1).join(':').trim()}</td></tr>`;
+        } 
+        // 次の行が存在し、かつ次の行にコロンが含まれていない場合は「見出し」と「値」のペアと判定
+        else if (i + 1 < lines.length && !lines[i+1].includes(':') && !lines[i+1].includes('：')) {
+            html += `<tr><th>${lines[i]}</th><td>${lines[i+1]}</td></tr>`;
+            i++; // 次の行は消費したのでスキップ
+        } 
+        // どちらにも当てはまらない場合は、1行ぶち抜きで表示
+        else {
+            html += `<tr><td colspan="2" style="background:#eee; text-align:center; font-weight:bold;">${lines[i]}</td></tr>`;
+        }
+    }
+    html += '</tbody></table>';
+    return html;
+}
+
+// ▼▼▼ URL自動リンク化 ▼▼▼
+function linkify(text) {
+    const urlPattern = /(https?:\/\/[^\s]+)/g;
+    return text.replace(urlPattern, '<br><a href="$1" target="_blank" class="search-link">🔗 詳しく見る（外部サイト）</a>');
+}
+
+// ▼▼▼ 読み上げ機能 ▼▼▼
+async function speakText(text) {
+    if (!isTTSEnabled) return;
+    if (currentAudio) currentAudio.pause();
+    
+    // URLやMarkdown記号は読まないように掃除
+    let cleanText = text.replace(/https?:\/\/[^\s]+/g, "。参考サイトを確認してたま！");
+    cleanText = cleanText.replace(/[*#_`]/g, ""); 
+
+    // VOICEVOX 青山龍星 (speaker=13)
+    const apiUrl = `https://api.tts.quest/v3/voicevox/synthesis?speaker=13&text=${encodeURIComponent(cleanText)}`;
+    try {
+        currentAudio = new Audio(apiUrl);
+        currentAudio.play();
+    } catch (e) { console.error("TTSエラー:", e); }
+}
+
 function toggleTTS() {
     isTTSEnabled = !isTTSEnabled;
-    localStorage.setItem('tama_tts_enabled', isTTSEnabled); // 設定を保存
-    updateTTSUI();
-    
-    // OFFにした瞬間、喋っていたら強制ストップ
-    if (!isTTSEnabled) {
-        window.speechSynthesis.cancel();
-    }
+    localStorage.setItem('tama_tts_enabled', isTTSEnabled);
+    if (!isTTSEnabled && currentAudio) currentAudio.pause();
+    updateTTSButton();
 }
 
-// UIの書き換え
-function updateTTSUI() {
-    const btn = document.getElementById('tts-toggle-btn');
-    if (!btn) return;
+function updateTTSButton() {
+    const btn = document.getElementById('tts-toggle');
     if (isTTSEnabled) {
-        btn.innerHTML = "🔊 読上ON";
-        btn.classList.remove('off');
+        btn.innerText = "🔊";
+        btn.classList.remove('tts-off');
     } else {
-        btn.innerHTML = "🔇 読上OFF";
-        btn.classList.add('off');
+        btn.innerText = "🔇";
+        btn.classList.add('tts-off');
     }
 }
 
-// 読み上げ機能（ONの時だけ動く）
-function speakText(text) {
-    if (!isTTSEnabled) return; // OFFならここでストップ
-    
-    window.speechSynthesis.cancel(); 
-    const uttr = new SpeechSynthesisUtterance(text);
-    uttr.lang = 'ja-JP';
-    uttr.rate = 1.0; 
-    uttr.pitch = 0.6; 
-    
-    const voices = window.speechSynthesis.getVoices();
-    const maleVoice = voices.find(v => v.lang === 'ja-JP' && (v.name.includes('Otoya') || v.name.includes('Keita') || v.name.includes('Male')));
-    if (maleVoice) uttr.voice = maleVoice;
-
-    window.speechSynthesis.speak(uttr);
-}
-
-function unlockAudio() {
-    seStart.load();
-    seReceive.load();
-    const dummyUttr = new SpeechSynthesisUtterance('');
-    window.speechSynthesis.speak(dummyUttr);
-    document.removeEventListener('click', unlockAudio);
-}
-document.addEventListener('click', unlockAudio);
-
+// ▼▼▼ 音声入力制御 ▼▼▼
 function initMic() {
     if (!('webkitSpeechRecognition' in window)) {
-        alert("このブラウザは音声入力に対応してないたま… SafariかChromeを使ってたま！");
-        return;
+        alert("音声入力非対応のブラウザだたま！"); return;
     }
     recognition = new webkitSpeechRecognition();
     recognition.lang = 'ja-JP';
-    recognition.interimResults = false;
-    recognition.continuous = false;
-
     recognition.onstart = () => {
         isRecording = true;
-        window.speechSynthesis.cancel(); // 新しく聞き取る時は音声を止める
-        if (isTTSEnabled) seStart.play().catch(e => console.log("SEエラー:", e)); 
-        
-        document.getElementById('mic-btn').classList.add('active'); 
-        document.getElementById('mic-status').innerText = "聞き取り中... (タップで停止)";
+        if (currentAudio) currentAudio.pause();
+        seStart.play().catch(e => {});
+        document.getElementById('mic-btn').classList.add('active');
+        document.getElementById('mic-status').innerText = "聞き取り中...";
         document.getElementById('mic-status').style.color = "#ff3030";
     };
-    recognition.onresult = (event) => {
-        const text = event.results[0][0].transcript;
-        document.getElementById('chat-input').value = text;
-        askPokemonAI(); 
+    recognition.onresult = (e) => {
+        document.getElementById('chat-input').value = e.results[0][0].transcript;
+        askPokemonAI();
     };
-    recognition.onerror = (event) => {
-        console.error("音声認識エラー:", event.error);
-        stopMic();
-    };
-    recognition.onend = () => {
-        stopMic();
-    };
+    recognition.onend = () => stopMic();
+    recognition.start();
 }
 
-function toggleMic() {
-    if (!recognition) initMic();
-    if (isRecording) {
-        recognition.stop();
-    } else {
-        recognition.start();
-    }
+function toggleMic() { if (isRecording) recognition.stop(); else initMic(); }
+function stopMic() { 
+    isRecording = false; 
+    document.getElementById('mic-btn').classList.remove('active'); 
+    const status = document.getElementById('mic-status');
+    status.innerText = "タップして話す";
+    status.style.color = "#555";
 }
 
-function stopMic() {
-    isRecording = false;
-    const micBtn = document.getElementById('mic-btn');
-    if (micBtn) micBtn.classList.remove('active'); 
-    const statusText = document.getElementById('mic-status');
-    if (statusText) {
-        statusText.innerText = "タップして話す";
-        statusText.style.color = "#555";
-    }
-}
-
+// ▼▼▼ メインAI通信・データ処理ロジック ▼▼▼
 async function askPokemonAI() {
     const inputEl = document.getElementById('chat-input');
-    const chatBox = document.getElementById('chat-messages');
     const userText = inputEl.value.trim();
     if (!userText) return;
 
+    const chatBox = document.getElementById('chat-messages');
     chatBox.innerHTML += `<div class="msg user"><div class="text">${userText}</div></div>`;
     inputEl.value = '';
-    const loadingId = "loading-" + Date.now();
     
-    chatBox.innerHTML += `
-        <div id="${loadingId}" class="msg bot">
-            <img src="tamachan.png" class="avatar" alt="たまちゃん">
-            <div class="text">解析中だたま...🔍</div>
-        </div>`;
+    // DBから直接一致するポケモンを探す
+    const directMatches = POKE_DB.filter(p => userText.includes(p.name));
     
-    chatBox.scrollTop = chatBox.scrollHeight;
-
-    let cheatSheet = "";
-    const statMatch = userText.match(/(?:種族値|合計).*?(\d{3,}).*?以上/);
-    const simpleOverMatch = userText.match(/(\d{3,})\s*以上/);
-    let threshold = null;
-    
-    if (statMatch) threshold = parseInt(statMatch[1], 10);
-    else if ((userText.includes("種族値") || userText.includes("合計")) && simpleOverMatch) threshold = parseInt(simpleOverMatch[1], 10);
-    else if (userText.includes("500以上")) threshold = 500;
-
-    if (threshold !== null) {
-        const strongPokemons = POKE_DB.filter(p => {
-            const m = p.info.match(/合計\s*\n\s*(\d+)/);
-            return m && parseInt(m[1], 10) >= threshold;
+    // ⚡ 【爆速モード】の処理 ⚡
+    // DBにデータがあれば、AIを通さず0秒で表（テーブル）を出力する！
+    if (isSpeedMode && directMatches.length > 0) {
+        seReceive.play().catch(e => {});
+        directMatches.forEach(p => {
+            chatBox.innerHTML += `
+                <div class="msg bot">
+                    <img src="tamachan.png" class="avatar">
+                    <div class="text" style="width: 100%; max-width: 100%;">
+                        <b>${p.name}のデータだたま！</b>
+                        ${createDataTable(p.info)}
+                    </div>
+                </div>`;
         });
-        cheatSheet = `【種族値${threshold}以上のFRLGポケモン一覧と詳細データ】\n` + 
-                     strongPokemons.map(p => {
-                         const m = p.info.match(/合計\s*\n\s*(\d+)/);
-                         return `・${p.name} (合計種族値: ${m[1]})`;
-                     }).join("\n");
-    } else {
-        const directMatches = POKE_DB.filter(p => userText.includes(p.name));
-        let relatedData = [];
-        if (directMatches.length > 0) {
-            POKE_DB.forEach(p => {
-                directMatches.forEach(target => {
-                    if (p.info.includes(target.name) || target.info.includes(p.name)) {
-                        relatedData.push(p);
-                    }
-                });
-            });
-            const finalMatches = [...new Set([...directMatches, ...relatedData])].slice(0, 5);
-            cheatSheet = finalMatches.map(p => `【${p.name}のデータ】\n${p.info}`).join("\n\n");
-        } 
-        else if (lastCheatSheet !== "") {
-            cheatSheet = `【前回のデータ（代名詞の質問用）】\n${lastCheatSheet}`;
-        } else {
-            cheatSheet = "【現在カンペなし】";
-        }
+        chatBox.scrollTop = chatBox.scrollHeight;
+        return; // ここで処理を終了（AIには通信しない）
     }
 
-    if (cheatSheet !== "【現在カンペなし】") lastCheatSheet = cheatSheet;
+    // 💬 【会話モード】 または DBに一致しない場合の処理 💬
+    const loadingId = "L-" + Date.now();
+    chatBox.innerHTML += `<div id="${loadingId}" class="msg bot"><img src="tamachan.png" class="avatar"><div class="text">解析中だたま...🔍</div></div>`;
+    chatBox.scrollTop = chatBox.scrollHeight;
 
-    const historyText = pokeChatHistory.map(h => `${h.role === 'user' ? 'ユーザー' : 'たまちゃん'}: ${h.text}`).join("\n");
-    const fullPrompt = `${SYSTEM_PROMPT}\n\n=== 過去会話 ===\n${historyText}\n\n=== カンペ ===\n${cheatSheet}\n\n=== 質問 ===\n${userText}`;
+    // カンペの準備
+    let cheatSheet = directMatches.length > 0 ? directMatches.map(p => `【${p.name}】\n${p.info}`).join("\n\n") : lastCheatSheet;
+    if (cheatSheet) lastCheatSheet = cheatSheet;
 
-    pokeChatHistory.push({ role: 'user', text: userText });
-    if (pokeChatHistory.length > 6) pokeChatHistory.shift();
+    const fullPrompt = `${SYSTEM_PROMPT}\n\n=== カンペ ===\n${cheatSheet || "なし"}\n\n=== 質問 ===\n${userText}`;
 
     try {
-        const response = await fetch(gasUrl, {
+        const res = await fetch(gasUrl, {
             method: "POST",
-            headers: { "Content-Type": "text/plain" },
             body: JSON.stringify({ contents: [{ parts: [{ text: fullPrompt }] }] })
         });
-        const data = await response.json();
-        const botReply = data.candidates[0].content.parts[0].text;
-        
-        pokeChatHistory.push({ role: 'bot', text: botReply });
-        if (pokeChatHistory.length > 6) pokeChatHistory.shift();
+        const data = await res.json();
+        let reply = data.candidates[0].content.parts[0].text;
         
         document.getElementById(loadingId).remove();
         
+        // テキスト内にURLがあれば、きれいなリンクボタンに変換
+        const linkedReply = linkify(reply);
+        
         chatBox.innerHTML += `
             <div class="msg bot">
-                <img src="tamachan.png" class="avatar" alt="たまちゃん">
-                <div class="text">${botReply}</div>
+                <img src="tamachan.png" class="avatar">
+                <div class="text">${linkedReply}</div>
             </div>`;
-            
         chatBox.scrollTop = chatBox.scrollHeight;
         
-        // 読み上げとSE再生
+        // 会話モードの時だけ読み上げを実行
         if (isTTSEnabled) {
-            seReceive.play().catch(e => console.log("SEエラー:", e));
-            speakText(botReply);
+            seReceive.play().catch(e => {});
+            speakText(reply);
         }
-        
-    } catch (error) {
+    } catch (e) {
         document.getElementById(loadingId).innerText = "通信エラーだたま！";
     }
 }
