@@ -6,7 +6,6 @@ let lastCheatSheet = "";
 let recognition;
 let isRecording = false;
 
-// AIモードと読み上げの設定（ローカルストレージから復元、デフォルトはON）
 let isAiMode = localStorage.getItem('tama_ai_mode') !== 'false'; 
 let isTTSEnabled = localStorage.getItem('tama_tts_enabled') !== 'false';
 let currentAudio = null;
@@ -14,14 +13,12 @@ let currentAudio = null;
 const seStart = new Audio('start.mp3');
 const seReceive = new Audio('receive.mp3');
 
-// 画面読み込み時にトグルとテキストの状態を合わせる
 document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('ai-checkbox').checked = isAiMode;
     document.getElementById('tts-checkbox').checked = isTTSEnabled;
     updateToggleText();
 });
 
-// ▼▼▼ トグルスイッチとテキストの連動 ▼▼▼
 function toggleMode() {
     isAiMode = document.getElementById('ai-checkbox').checked;
     localStorage.setItem('tama_ai_mode', isAiMode);
@@ -46,32 +43,11 @@ function updateToggleText() {
     ttsText.style.background = isTTSEnabled ? "#e8f5e9" : "#fff";
 }
 
-// ▼▼▼ 横幅100%テーブルジェネレーター ▼▼▼
-function createDataTable(infoText) {
-    const lines = infoText.split('\n').map(l => l.trim()).filter(l => l !== "");
-    let html = '<table class="poke-table"><tbody>';
-    
-    for (let i = 0; i < lines.length; i++) {
-        // コロン（半角・全角）で区切って表にする
-        if (lines[i].includes('：') || lines[i].includes(':')) {
-            let parts = lines[i].split(/[：:]/);
-            html += `<tr><th>${parts[0].trim()}</th><td>${parts.slice(1).join('：').trim()}</td></tr>`;
-        } else {
-            // 区切りがない場合は見出しとして扱う
-            html += `<tr><td colspan="2" style="background:#eee; text-align:center;">${lines[i]}</td></tr>`;
-        }
-    }
-    html += '</tbody></table>';
-    return html;
-}
-
-// URL自動リンク化
 function linkify(text) {
     const urlPattern = /(https?:\/\/[^\s]+)/g;
     return text.replace(urlPattern, '<br><a href="$1" target="_blank" class="search-link">🔗 詳しく見る</a>');
 }
 
-// 読み上げ（VOICEVOX 青山龍星）
 async function speakText(text) {
     if (!isTTSEnabled) return;
     if (currentAudio) currentAudio.pause();
@@ -83,7 +59,6 @@ async function speakText(text) {
     } catch (e) { console.error("TTSエラー:", e); }
 }
 
-// マイク制御
 function initMic() {
     if (!('webkitSpeechRecognition' in window)) { alert("音声入力非対応だたま！"); return; }
     recognition = new webkitSpeechRecognition();
@@ -105,7 +80,7 @@ function initMic() {
 function toggleMic() { if (isRecording) recognition.stop(); else initMic(); }
 function stopMic() { isRecording = false; document.getElementById('mic-btn').classList.remove('active'); document.getElementById('mic-status').innerText = "タップして話す"; }
 
-// ▼▼▼ メインロジック（画像表示対応版） ▼▼▼
+// ▼▼▼ メインロジック ▼▼▼
 async function askPokemonAI() {
     const inputEl = document.getElementById('chat-input');
     const userText = inputEl.value.trim();
@@ -115,31 +90,30 @@ async function askPokemonAI() {
     chatBox.innerHTML += `<div class="msg user"><div class="text">${userText}</div></div>`;
     inputEl.value = '';
     
-    const directMatches = POKE_DB.filter(p => userText.includes(p.name));
+    // DBからポケモンを検索
+    let directMatches = [];
+    if (typeof POKE_DB !== 'undefined') {
+        directMatches = POKE_DB.filter(p => userText.includes(p.name));
+    }
     
-    // ⚡ 【AI：OFF】アバターを完全に消して、画像＋表のカードを表示！ ⚡
+    // ⚡ 【AI：OFF】アバターを完全に消して、スクロール可能なデータカードを表示！ ⚡
     if (!isAiMode && directMatches.length > 0) {
         seReceive.play().catch(e => {});
         directMatches.forEach(p => {
             
-            // ▼ 画像がある場合だけ、カードの上部に画像表示エリアを作る
-            let imageHtml = "";
-            if (p.imageUrl) {
-                imageHtml = `
-                <div style="background: radial-gradient(circle, #fff 0%, #e0e0e0 100%); text-align: center; padding: 15px; border-bottom: 2px solid #222;">
-                    <img src="${p.imageUrl}" style="width: 120px; height: 120px; object-fit: contain; filter: drop-shadow(3px 3px 2px rgba(0,0,0,0.3));">
-                </div>`;
-            }
+            // Rickunの特大テキストデータ（\n）をHTMLの改行（<br>）に変換して読みやすくする
+            const formattedInfo = p.info.replace(/\n/g, '<br>');
 
-            // カード全体を出力
+            // 横幅100%・スクロール可能な専用ボックスを出力
             chatBox.innerHTML += `
                 <div class="data-card">
                     <div class="data-card-header">
                         <span>📊 ${p.name} のデータ</span>
                         <span style="font-size: 10px; font-weight: normal;">データベース</span>
                     </div>
-                    ${imageHtml}
-                    ${createDataTable(p.info)}
+                    <div style="padding: 12px; font-size: 13px; line-height: 1.6; max-height: 350px; overflow-y: auto; background: #fdfdfd; color: #222; border-bottom-left-radius: 5px; border-bottom-right-radius: 5px;">
+                        ${formattedInfo}
+                    </div>
                 </div>`;
         });
         chatBox.scrollTop = chatBox.scrollHeight;
@@ -154,7 +128,6 @@ async function askPokemonAI() {
     let cheatSheet = directMatches.length > 0 ? directMatches.map(p => `【${p.name}】\n${p.info}`).join("\n\n") : lastCheatSheet;
     if (cheatSheet) lastCheatSheet = cheatSheet;
 
-    // poke-tamachan-data.js にある SYSTEM_PROMPT を読み込む
     const fullPrompt = `${typeof SYSTEM_PROMPT !== 'undefined' ? SYSTEM_PROMPT : ''}\n\n=== カンペ ===\n${cheatSheet || "なし"}\n\n=== 質問 ===\n${userText}`;
 
     try {
