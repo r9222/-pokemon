@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>ポケモン攻略たまちゃん</title>
+    
+    <script>
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+        const manifestLink = document.createElement('link');
+        manifestLink.rel = 'manifest';
+        manifestLink.href = isIOS ? 'manifest-ios.json' : 'manifest.json';
+        document.head.appendChild(manifestLink);
+        
+        if (!isIOS) {
+            const meta = document.createElement('meta');
+            meta.name = 'apple-mobile-web-app-capable';
+            meta.content = 'yes';
+            document.head.appendChild(meta);
+        }
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => navigator.serviceWorker.register('sw.js'));
+        }
+    </script>
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="攻略たま">
+    <link rel="apple-touch-icon" href="icon.png">
+
+    <link href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap" rel="stylesheet">
+
+    <style>
+        :root { 
+            --dex-red: #dd0b2d; 
+            --dex-dark: #222222; 
+            --dex-screen: #98cb98; 
+            --dex-metal: #d8d8d8;
+        }
+        * { box-sizing: border-box; }
+        body { 
+            font-family: 'DotGothic16', sans-serif; 
+            background: #111; 
+            margin: 0; padding: 0; 
+            overflow: hidden; 
+        }
+        
+        .container { 
+            max-width: 600px; margin: 0 auto; 
+            background: var(--dex-red); 
+            height: 100vh; height: 100dvh; 
+            display: flex; flex-direction: column; 
+            box-shadow: inset -5px -5px 15px rgba(0,0,0,0.3), inset 5px 5px 15px rgba(255,255,255,0.2);
+            position: relative;
+        }
+        
+        .top-bezel {
+            padding: 15px 20px 10px;
+            display: flex; gap: 10px; align-items: flex-start;
+            border-bottom: 2px solid #880015;
+            background: linear-gradient(180deg, #ff3b5c, var(--dex-red));
+            padding-top: calc(15px + env(safe-area-inset-top));
+            flex-shrink: 0; 
+        }
+        .main-lens {
+            width: 45px; height: 45px; border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, #5ce6e6, #0e85a5 60%, #002233);
+            border: 3px solid #ddd; box-shadow: 0 0 10px rgba(0,0,0,0.5);
+        }
+        .mini-leds { display: flex; gap: 8px; margin-top: 5px; }
+        .led { width: 12px; height: 12px; border-radius: 50%; border: 1px solid #333; box-shadow: inset -2px -2px 4px rgba(0,0,0,0.4); }
+        .led.red { background: #ff4757; }
+        .led.yellow { background: #ffa502; }
+        .led.green { background: #2ed573; }
+        
+        .header-title { color: white; margin-left: auto; font-size: 18px; text-shadow: 2px 2px 0 #333; align-self: center; }
+
+        .screen-container {
+            background: var(--dex-dark);
+            margin: 15px; padding: 20px 20px 30px;
+            border-radius: 10px 10px 40px 10px; 
+            display: flex; flex-direction: column;
+            flex: 1; min-height: 0; 
+            box-shadow: inset 0 0 10px black, 0 5px 10px rgba(0,0,0,0.3);
+        }
+
+        #chat-messages { 
+            flex: 1; overflow-y: auto; 
+            background-color: var(--dex-screen); 
+            background-image: 
+                linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%), 
+                linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+            background-size: 100% 4px, 3px 100%;
+            border: 3px solid #555; border-radius: 5px;
+            padding: 15px; 
+            box-shadow: inset 0 0 15px rgba(0,0,0,0.2);
+        }
+        
+        .msg { display: flex; margin-bottom: 12px; animation: slideIn 0.2s ease; align-items: flex-start; }
+        .msg.user { justify-content: flex-end; }
+        
+        .avatar {
+            width: 45px; height: 45px; object-fit: contain; flex-shrink: 0;
+            filter: drop-shadow(2px 2px 0px rgba(0,0,0,0.2)); 
+        }
+
+        .msg.bot { gap: 8px; }
+        .msg .text { 
+            padding: 10px 12px; max-width: 80%; 
+            font-size: 15px; line-height: 1.4; white-space: pre-wrap; 
+            background: white; border: 2px solid #222; box-shadow: 2px 2px 0 #222; color: #111;
+        }
+        .msg.bot .text { background: #fdfdfd; border-radius: 5px 15px 15px 15px; }
+        .msg.user .text { background: #f1c40f; border-radius: 15px 5px 15px 15px; }
+
+        .control-panel {
+            background: var(--dex-metal);
+            border-top: 4px solid #888;
+            padding: 15px 20px calc(15px + env(safe-area-inset-bottom));
+            display: flex; flex-direction: column; align-items: center;
+            box-shadow: inset 0 10px 10px rgba(255,255,255,0.5);
+            border-radius: 20px 20px 0 0;
+            flex-shrink: 0; 
+        }
+
+        .pokeball-btn {
+            width: 85px; height: 85px; border-radius: 50%;
+            background: linear-gradient(to bottom, #ff3030 46%, #222 46%, #222 54%, #fff 54%);
+            border: 4px solid #222;
+            box-shadow: inset -5px -5px 15px rgba(0,0,0,0.3), 0 5px 10px rgba(0,0,0,0.4);
+            position: relative; cursor: pointer; display: flex; justify-content: center; align-items: center;
+            margin-top: -45px; transition: 0.1s;
+        }
+        .pokeball-btn:active { transform: scale(0.95); }
+        .pokeball-center {
+            width: 26px; height: 26px; background: #fff; border: 3px solid #222; border-radius: 50%;
+            box-shadow: inset -2px -2px 5px rgba(0,0,0,0.2); transition: 0.3s;
+        }
+        .pokeball-btn.active .pokeball-center { background: #ff4757; box-shadow: 0 0 15px #ff4757; animation: blink 1s infinite; }
+        
+        /* ▼▼ ステータスとトグルボタンの並び ▼▼ */
+        .status-row {
+            display: flex; justify-content: space-between; align-items: center; 
+            width: 100%; margin: 10px 0; padding: 0 5px;
+        }
+        .spacer { width: 80px; } /* 中央寄せのバランス用 */
+        .mic-status-text { font-size: 13px; color: #555; font-weight: bold; text-align: center; flex: 1; }
+        
+        /* 音声トグルボタン */
+        .sound-toggle {
+            background: #222; color: white; border: 2px solid #555; border-radius: 20px;
+            padding: 5px 12px; font-family: 'DotGothic16', sans-serif; font-size: 12px;
+            cursor: pointer; box-shadow: 2px 2px 0 #555; transition: 0.2s; width: 80px;
+        }
+        .sound-toggle:active { transform: translate(2px, 2px); box-shadow: 0 0 0; }
+        .sound-toggle.off { background: #ccc; color: #555; border-color: #aaa; box-shadow: 2px 2px 0 #aaa; }
+
+        .text-input-row { display: flex; gap: 8px; width: 100%; }
+        input { 
+            flex: 1; padding: 12px; border: 2px solid #888; border-radius: 8px; 
+            font-family: 'DotGothic16', sans-serif; font-size: 14px; background: #eee; outline: none; box-shadow: inset 2px 2px 5px rgba(0,0,0,0.1);
+        }
+        input:focus { background: white; border-color: var(--dex-red); }
+        .send-btn { 
+            background: #222; color: white; border: none; padding: 0 15px; border-radius: 8px; 
+            font-family: 'DotGothic16', sans-serif; cursor: pointer; box-shadow: 2px 2px 0 #888;
+        }
+        .send-btn:active { transform: translate(2px, 2px); box-shadow: 0 0 0; }
+
+        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="top-bezel">
+            <div class="main-lens"></div>
+            <div class="mini-leds">
+                <div class="led red"></div><div class="led yellow"></div><div class="led green"></div>
+            </div>
+            <div class="header-title">ﾀﾏﾁｬﾝ_Navi</div>
+        </div>
+        
+        <div class="screen-container">
+            <div id="chat-messages">
+                <div class="msg bot">
+                    <img src="tamachan.png" class="avatar" alt="たまちゃん">
+                    <div class="text">攻略データリンク完了だたま！<br>下のモンスターボールをタップして話しかけてね！</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="control-panel">
+            <div id="mic-btn" class="pokeball-btn" onclick="toggleMic()">
+                <div class="pokeball-center"></div>
+            </div>
+            
+            <div class="status-row">
+                <div class="spacer"></div>
+                <div id="mic-status" class="mic-status-text">タップして話す</div>
+                <button id="tts-toggle-btn" class="sound-toggle" onclick="toggleTTS()">🔊 読上ON</button>
+            </div>
+            
+            <div class="text-input-row">
+                <input type="text" id="chat-input" placeholder="テキストで入力..." onkeypress="if(event.key === 'Enter') askPokemonAI()">
+                <button class="send-btn" onclick="askPokemonAI()">送信</button>
+            </div>
+        </div>
+    </div>
+    
+    <script src="pokemon-db.js"></script>
+    <script src="poke-tamachan-data.js"></script>
+    <script src="poke-ai.js"></script>
+</body>
+</html>
