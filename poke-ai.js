@@ -6,46 +6,57 @@ let lastCheatSheet = "";
 let recognition;
 let isRecording = false;
 
-// ローカルストレージから設定を復元 (デフォルトは AI会話(false) / 音声ON(true) )
-let isSpeedMode = localStorage.getItem('tama_speed_mode') === 'true'; 
+// 💡 「AIモード」として設計し直し（デフォルトON=true）
+let isAiMode = localStorage.getItem('tama_ai_mode') !== 'false'; 
 let isTTSEnabled = localStorage.getItem('tama_tts_enabled') !== 'false';
 let currentAudio = null;
 
 const seStart = new Audio('start.mp3');
 const seReceive = new Audio('receive.mp3');
 
-// 画面読み込み時にトグルスイッチのON/OFFを合わせる
+// 画面読み込み時にトグルとテキストの状態を合わせる
 document.addEventListener('DOMContentLoaded', () => {
-    document.getElementById('mode-checkbox').checked = isSpeedMode;
+    document.getElementById('ai-checkbox').checked = isAiMode;
     document.getElementById('tts-checkbox').checked = isTTSEnabled;
+    updateToggleText();
 });
 
-// ▼▼▼ トグルスイッチの動作 ▼▼▼
+// ▼▼▼ トグルスイッチとテキストの連動 ▼▼▼
 function toggleMode() {
-    isSpeedMode = document.getElementById('mode-checkbox').checked;
-    localStorage.setItem('tama_speed_mode', isSpeedMode);
+    isAiMode = document.getElementById('ai-checkbox').checked;
+    localStorage.setItem('tama_ai_mode', isAiMode);
+    updateToggleText();
 }
 
 function toggleTTS() {
     isTTSEnabled = document.getElementById('tts-checkbox').checked;
     localStorage.setItem('tama_tts_enabled', isTTSEnabled);
     if (!isTTSEnabled && currentAudio) currentAudio.pause();
+    updateToggleText();
 }
 
-// ▼▼▼ 表ジェネレーター（アバターなし・全画面カード用） ▼▼▼
+function updateToggleText() {
+    const aiText = document.getElementById('ai-status-text');
+    const ttsText = document.getElementById('tts-status-text');
+    
+    aiText.innerText = isAiMode ? "AI：ON" : "AI：OFF";
+    aiText.style.background = isAiMode ? "#e8f5e9" : "#fff"; // ONなら薄い緑
+    
+    ttsText.innerText = isTTSEnabled ? "読上：ON" : "読上：OFF";
+    ttsText.style.background = isTTSEnabled ? "#e8f5e9" : "#fff";
+}
+
+// ▼▼▼ 横幅100%テーブルジェネレーター ▼▼▼
 function createDataTable(infoText) {
     const lines = infoText.split('\n').map(l => l.trim()).filter(l => l !== "");
     let html = '<table class="poke-table"><tbody>';
     
-    for (let i = 0; i < lines.length; i++) {
-        if (lines[i].includes(':') || lines[i].includes('：')) {
-            let parts = lines[i].split(/[:：]/);
-            html += `<tr><th>${parts[0].trim()}</th><td>${parts.slice(1).join(':').trim()}</td></tr>`;
-        } else if (i + 1 < lines.length && !lines[i+1].includes(':') && !lines[i+1].includes('：')) {
+    // 単純に2行ずつペアにして表にするロジック
+    for (let i = 0; i < lines.length; i += 2) {
+        if (lines[i+1]) {
             html += `<tr><th>${lines[i]}</th><td>${lines[i+1]}</td></tr>`;
-            i++; 
         } else {
-            html += `<tr><td colspan="2" style="background:#e0e0e0; font-weight:bold; text-align:center;">${lines[i]}</td></tr>`;
+            html += `<tr><td colspan="2" style="background:#eee; text-align:center;">${lines[i]}</td></tr>`;
         }
     }
     html += '</tbody></table>';
@@ -55,17 +66,14 @@ function createDataTable(infoText) {
 // URL自動リンク化
 function linkify(text) {
     const urlPattern = /(https?:\/\/[^\s]+)/g;
-    return text.replace(urlPattern, '<br><a href="$1" target="_blank" class="search-link">🔗 詳しく見る（外部サイト）</a>');
+    return text.replace(urlPattern, '<br><a href="$1" target="_blank" class="search-link">🔗 詳しく見る</a>');
 }
 
 // 読み上げ
 async function speakText(text) {
     if (!isTTSEnabled) return;
     if (currentAudio) currentAudio.pause();
-    
-    let cleanText = text.replace(/https?:\/\/[^\s]+/g, "。参考サイトを確認してたま！");
-    cleanText = cleanText.replace(/[*#_`]/g, ""); 
-
+    let cleanText = text.replace(/https?:\/\/[^\s]+/g, "。参考サイトを確認してたま！").replace(/[*#_`]/g, ""); 
     const apiUrl = `https://api.tts.quest/v3/voicevox/synthesis?speaker=13&text=${encodeURIComponent(cleanText)}`;
     try {
         currentAudio = new Audio(apiUrl);
@@ -75,9 +83,7 @@ async function speakText(text) {
 
 // マイク制御
 function initMic() {
-    if (!('webkitSpeechRecognition' in window)) {
-        alert("音声入力非対応だたま！"); return;
-    }
+    if (!('webkitSpeechRecognition' in window)) { alert("音声入力非対応だたま！"); return; }
     recognition = new webkitSpeechRecognition();
     recognition.lang = 'ja-JP';
     recognition.onstart = () => {
@@ -86,7 +92,6 @@ function initMic() {
         seStart.play().catch(e => {});
         document.getElementById('mic-btn').classList.add('active');
         document.getElementById('mic-status').innerText = "聞き取り中...";
-        document.getElementById('mic-status').style.color = "#ff3030";
     };
     recognition.onresult = (e) => {
         document.getElementById('chat-input').value = e.results[0][0].transcript;
@@ -95,15 +100,8 @@ function initMic() {
     recognition.onend = () => stopMic();
     recognition.start();
 }
-
 function toggleMic() { if (isRecording) recognition.stop(); else initMic(); }
-function stopMic() { 
-    isRecording = false; 
-    document.getElementById('mic-btn').classList.remove('active'); 
-    const status = document.getElementById('mic-status');
-    status.innerText = "タップして話す";
-    status.style.color = "#555";
-}
+function stopMic() { isRecording = false; document.getElementById('mic-btn').classList.remove('active'); document.getElementById('mic-status').innerText = "タップして話す"; }
 
 // ▼▼▼ メインロジック ▼▼▼
 async function askPokemonAI() {
@@ -112,22 +110,21 @@ async function askPokemonAI() {
     if (!userText) return;
 
     const chatBox = document.getElementById('chat-messages');
-    
-    // ユーザーの吹き出し
     chatBox.innerHTML += `<div class="msg user"><div class="text">${userText}</div></div>`;
     inputEl.value = '';
     
     const directMatches = POKE_DB.filter(p => userText.includes(p.name));
     
-    // ⚡ 【爆速モード (DB)】アバターを消して、画面幅いっぱいのカードをドン！ ⚡
-    if (isSpeedMode && directMatches.length > 0) {
+    // ⚡ 【AI：OFF】アバターを完全に消して、画面幅100%のカードを直接置く！ ⚡
+    if (!isAiMode && directMatches.length > 0) {
         seReceive.play().catch(e => {});
         directMatches.forEach(p => {
+            // ※ .msg クラスを使わずに、直接 .data-card を出力します！
             chatBox.innerHTML += `
                 <div class="data-card">
                     <div class="data-card-header">
                         <span>📊 ${p.name} のデータ</span>
-                        <span style="font-size: 11px; color:#aaa;">DB直接抽出</span>
+                        <span style="font-size: 10px; font-weight: normal;">データベース</span>
                     </div>
                     ${createDataTable(p.info)}
                 </div>`;
@@ -136,7 +133,7 @@ async function askPokemonAI() {
         return; 
     }
 
-    // 💬 【会話モード (AI)】いつものたまちゃん 💬
+    // 💬 【AI：ON】いつものたまちゃん（吹き出し＋アバター） 💬
     const loadingId = "L-" + Date.now();
     chatBox.innerHTML += `<div id="${loadingId}" class="msg bot"><img src="tamachan.png" class="avatar"><div class="text">解析中だたま...🔍</div></div>`;
     chatBox.scrollTop = chatBox.scrollHeight;
@@ -147,21 +144,16 @@ async function askPokemonAI() {
     const fullPrompt = `${SYSTEM_PROMPT}\n\n=== カンペ ===\n${cheatSheet || "なし"}\n\n=== 質問 ===\n${userText}`;
 
     try {
-        const res = await fetch(gasUrl, {
-            method: "POST",
-            body: JSON.stringify({ contents: [{ parts: [{ text: fullPrompt }] }] })
-        });
+        const res = await fetch(gasUrl, { method: "POST", body: JSON.stringify({ contents: [{ parts: [{ text: fullPrompt }] }] }) });
         const data = await res.json();
         let reply = data.candidates[0].content.parts[0].text;
         
         document.getElementById(loadingId).remove();
         
-        const linkedReply = linkify(reply);
-        
         chatBox.innerHTML += `
             <div class="msg bot">
                 <img src="tamachan.png" class="avatar">
-                <div class="text">${linkedReply}</div>
+                <div class="text">${linkify(reply)}</div>
             </div>`;
         chatBox.scrollTop = chatBox.scrollHeight;
         
