@@ -36,19 +36,22 @@
 
         /* スクリーン */
         .screen-container { background: var(--dex-dark); margin: 15px; padding: 20px 20px 30px; border-radius: 10px 10px 40px 10px; display: flex; flex-direction: column; flex: 1; min-height: 0; box-shadow: inset 0 0 10px black; }
-        #chat-messages { flex: 1; overflow-y: auto; background-color: var(--dex-screen); background-image: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%); background-size: 100% 4px; border: 3px solid #555; border-radius: 5px; padding: 15px; }
+        #chat-messages { flex: 1; overflow-y: auto; background-color: var(--dex-screen); background-image: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%); background-size: 100% 4px; border: 3px solid #555; border-radius: 5px; padding: 12px; }
         
-        /* ▼▼ 爆速モード用 ステータス表（RPG風） ▼▼ */
-        .poke-table { width: 100%; border-collapse: collapse; background: #fdfdfd; border: 2px solid #222; margin-top: 8px; font-size: 14px; box-shadow: 2px 2px 0 #222; }
-        .poke-table th, .poke-table td { border: 1px solid #444; padding: 8px; text-align: left; }
-        .poke-table th { background: #e0e0e0; width: 35%; text-align: right; padding-right: 10px; }
-        
+        /* ▼▼ 爆速モード用 フル幅データカード ▼▼ */
+        .data-card { width: 100%; background: #fff; border: 3px solid #222; border-radius: 8px; margin-bottom: 15px; box-shadow: 2px 2px 0 #222; overflow: hidden; animation: slideIn 0.2s ease; }
+        .data-card-header { background: #222; color: #fff; padding: 8px 12px; font-size: 15px; display: flex; justify-content: space-between; align-items: center; }
+        .poke-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        .poke-table th, .poke-table td { border-bottom: 1px solid #ddd; padding: 8px 10px; text-align: left; }
+        .poke-table tr:last-child th, .poke-table tr:last-child td { border-bottom: none; }
+        .poke-table th { background: #f0f0f0; width: 35%; color: #333; border-right: 1px solid #ddd; }
+
         /* URLリンク装飾 */
         .search-link { display: inline-block; background: #222; color: #fff; padding: 8px 12px; border-radius: 5px; text-decoration: none; margin-top: 8px; font-size: 12px; border-bottom: 3px solid #000; transition: 0.1s; }
         .search-link:active { transform: translateY(2px); border-bottom: 0; }
 
-        /* チャットの吹き出し */
-        .msg { display: flex; margin-bottom: 12px; animation: slideIn 0.2s ease; align-items: flex-start; }
+        /* チャットの吹き出し（会話モード用） */
+        .msg { display: flex; margin-bottom: 15px; animation: slideIn 0.2s ease; align-items: flex-start; }
         .msg.user { justify-content: flex-end; }
         .avatar { width: 45px; height: 45px; object-fit: contain; flex-shrink: 0; margin-right: 8px; filter: drop-shadow(1px 1px 0px rgba(0,0,0,0.2)); }
         .msg .text { padding: 10px 12px; max-width: 85%; font-size: 15px; background: white; border: 2px solid #222; box-shadow: 2px 2px 0 #222; line-height: 1.5; }
@@ -57,7 +60,7 @@
 
         /* コントロールパネル */
         .control-panel { background: var(--dex-metal); border-top: 4px solid #888; padding: 15px 15px calc(15px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; align-items: center; flex-shrink: 0; }
-        .main-controls { display: flex; align-items: center; justify-content: space-around; width: 100%; margin-top: -50px; }
+        .main-controls { display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 0 10px; margin-top: -50px; }
 
         /* モンスターボールマイク */
         .pokeball-btn { width: 90px; height: 90px; border-radius: 50%; background: linear-gradient(to bottom, #ff3030 46%, #222 46%, #222 54%, #fff 54%); border: 4px solid #222; box-shadow: 0 5px 10px rgba(0,0,0,0.4); cursor: pointer; display: flex; justify-content: center; align-items: center; transition: transform 0.1s; }
@@ -65,18 +68,26 @@
         .pokeball-center { width: 28px; height: 28px; background: #fff; border: 3px solid #222; border-radius: 50%; }
         .pokeball-btn.active .pokeball-center { background: #ff4757; box-shadow: 0 0 15px #ff4757; animation: blink 1s infinite; }
         
-        /* トグルスイッチ（モード切替＆音声） */
-        .toggle-unit { display: flex; flex-direction: column; align-items: center; gap: 5px; }
-        .mini-toggle { width: 55px; height: 55px; border-radius: 12px; background: #444; color: white; border: 3px solid #222; font-size: 20px; cursor: pointer; box-shadow: 3px 3px 0 #222; transition: 0.1s; display: flex; justify-content: center; align-items: center; }
-        .mini-toggle:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 #222; }
-        .mini-toggle.speed-on { background: #f1c40f; color: #222; } /* 爆速モードは黄色に光る */
-        .mini-toggle.tts-off { background: #888; filter: grayscale(1); }
-        .toggle-label { font-size: 11px; font-weight: bold; color: #555; }
+        /* ▼▼ スライダートグルスイッチ ▼▼ */
+        .toggle-group { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 70px; }
+        .toggle-label-top { font-size: 11px; font-weight: bold; color: #555; text-align: center; }
+        
+        .switch { position: relative; display: inline-block; width: 64px; height: 32px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #888; transition: .3s; border-radius: 34px; border: 2px solid #222; box-shadow: inset 1px 1px 3px rgba(0,0,0,0.3); }
+        .slider:before { position: absolute; content: ""; height: 24px; width: 24px; left: 2px; bottom: 2px; background-color: white; transition: .3s; border-radius: 50%; border: 2px solid #222; z-index: 2; }
+        
+        /* チェックされた時（右側）の背景色 */
+        input:checked + .slider { background-color: #e74c3c; } /* 赤色ベース */
+        input:checked + .slider:before { transform: translateX(32px); }
+
+        /* トグル内の文字（左と右に固定配置） */
+        .slider-text { position: absolute; width: 100%; top: 0; left: 0; display: flex; justify-content: space-between; padding: 0 8px; line-height: 28px; font-size: 11px; font-weight: bold; color: white; pointer-events: none; z-index: 1; }
 
         .mic-status-text { font-size: 13px; color: #555; margin: 12px 0 8px; font-weight: bold; }
         .text-input-row { display: flex; gap: 8px; width: 100%; }
-        input { flex: 1; padding: 12px; border: 2px solid #888; border-radius: 8px; font-family: 'DotGothic16', sans-serif; font-size: 14px; background: #eee; }
-        input:focus { background: #fff; outline: 2px solid var(--dex-red); }
+        input[type="text"] { flex: 1; padding: 12px; border: 2px solid #888; border-radius: 8px; font-family: 'DotGothic16', sans-serif; font-size: 14px; background: #eee; }
+        input[type="text"]:focus { background: #fff; outline: 2px solid var(--dex-red); }
         .send-btn { background: #222; color: white; border: none; padding: 0 18px; border-radius: 8px; font-family: 'DotGothic16', sans-serif; cursor: pointer; box-shadow: 2px 2px 0 #555; transition: 0.1s; }
         .send-btn:active { transform: translate(2px, 2px); box-shadow: 0 0 0; }
 
@@ -93,25 +104,37 @@
         
         <div class="screen-container">
             <div id="chat-messages">
-                <div class="msg bot"><img src="tamachan.png" class="avatar"><div class="text">攻略データリンク完了だたま！<br>モードを選んで話しかけてね。</div></div>
+                <div class="msg bot"><img src="tamachan.png" class="avatar"><div class="text">攻略データリンク完了だたま！</div></div>
             </div>
         </div>
         
         <div class="control-panel">
             <div class="main-controls">
-                <div class="toggle-unit">
-                    <button id="mode-toggle" class="mini-toggle" onclick="toggleMode()">💬</button>
-                    <span id="mode-label" class="toggle-label">会話モード</span>
+                
+                <div class="toggle-group">
+                    <span class="toggle-label-top">モード</span>
+                    <label class="switch">
+                        <input type="checkbox" id="mode-checkbox" onchange="toggleMode()">
+                        <span class="slider">
+                            <div class="slider-text"><span>⚡</span><span>💬</span></div>
+                        </span>
+                    </label>
                 </div>
                 
                 <div id="mic-btn" class="pokeball-btn" onclick="toggleMic()">
                     <div class="pokeball-center"></div>
                 </div>
 
-                <div class="toggle-unit">
-                    <button id="tts-toggle" class="mini-toggle" onclick="toggleTTS()">🔊</button>
-                    <span class="toggle-label">読上げ音声</span>
+                <div class="toggle-group">
+                    <span class="toggle-label-top">読上げ</span>
+                    <label class="switch">
+                        <input type="checkbox" id="tts-checkbox" onchange="toggleTTS()">
+                        <span class="slider">
+                            <div class="slider-text"><span>🔊</span><span>🔇</span></div>
+                        </span>
+                    </label>
                 </div>
+
             </div>
 
             <div id="mic-status" class="mic-status-text">タップして話す</div>
