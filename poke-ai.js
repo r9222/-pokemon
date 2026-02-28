@@ -42,7 +42,7 @@ function updateToggleText() {
     ttsText.style.background = isTTSEnabled ? "#e8f5e9" : "#fff";
 }
 
-// ▼▼▼ 音声入力の「漢字バグ」を公式表記に全自動翻訳するフィルター ▼▼▼
+// 音声入力の「漢字バグ」を公式表記に全自動翻訳するフィルター
 function fixVoiceInput(text) {
     return text.replace(/人影/g, "ヒトカゲ")
                .replace(/不思議だね/g, "フシギダネ")
@@ -91,7 +91,7 @@ function findPokemon(userText) {
     return matches;
 }
 
-// ▼▼▼ 美しいカードレイアウトジェネレーター ▼▼▼
+// 美しいカードレイアウトジェネレーター
 function createBeautifulCard(poke) {
     const pokeNum = parseInt(poke.no);
     const imgUrl = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${pokeNum}.png`;
@@ -236,7 +236,7 @@ async function askPokemonAI() {
     let rawText = inputEl.value.trim();
     if (!rawText) return;
 
-    // ★ここで音声入力の誤変換（漢字）を公式のひらがな・カタカナに一発翻訳！
+    // 音声入力の誤変換（漢字）を公式のひらがな・カタカナに一発翻訳
     rawText = fixVoiceInput(rawText);
 
     const chatBox = document.getElementById('chat-messages');
@@ -255,7 +255,7 @@ async function askPokemonAI() {
         return; 
     }
 
-    // 💬 【AI：ON】幻覚を完全に防ぐ厳しいプロンプト 💬
+    // 💬 【AI：ON】AIが自信を持って探せるように「肯定のルール」を追加！ 💬
     const loadingId = "L-" + Date.now();
     chatBox.innerHTML += `<div id="${loadingId}" class="msg bot"><img src="tamachan.png" class="avatar"><div class="text">解析中だたま...🔍</div></div>`;
     chatBox.scrollTop = chatBox.scrollHeight;
@@ -263,13 +263,17 @@ async function askPokemonAI() {
     let cheatSheet = directMatches.length > 0 ? directMatches.map(p => `【${p.name}】\n${p.info}`).join("\n\n") : lastCheatSheet;
     if (cheatSheet) lastCheatSheet = cheatSheet;
 
+    // ★AIの脳内を調整（ちゃんと見つけたら教えるように指示）
     const aiSystemPrompt = `
 あなたはポケモンのガチ勢アシスタント「たまちゃん」だたま。
-【絶対厳守のルール】
-1. 以下の === カンペ === のデータだけを「唯一の事実」として回答しなさい。あなたの事前の知識（第4世代以降など）は一切使ってはいけません。
-2. 音声入力の仕様上、ユーザーの質問には技名の表記ゆれ（例：「冷凍ビーム」や「十万ボルト」など漢字・ひらがな・カタカナ・数字の混在）が含まれます。あなたは文脈から「FRLGでの正式な技名」を柔軟に推測し、カンペの中にその技が存在するか賢く照らし合わせて判定しなさい。
-3. 柔軟に照らし合わせた結果、カンペに本当に載っていない技を聞かれた場合のみ「その技は覚えないたま！」とキッパリ否定しなさい。
-4. 語尾は必ず「〜だたま！」にすること。
+以下の【絶対厳守のルール】に従って回答しなさい。
+
+1. 以下の === カンペ === のデータだけを「唯一の事実」として読み取りなさい。事前の知識は一切使ってはいけません。
+2. ユーザーから「○○の技は覚える？」等と聞かれたら、カンペのテキスト内（レベルアップ、わざマシン、タマゴわざ等）を隅々まで探しなさい。
+3. 音声入力の仕様で「冷凍ビーム」や「十万ボルト」など漢字になっていても、柔軟に「れいとうビーム」「10まんボルト」のことだと推測して照らし合わせなさい。
+4. 【カンペの中に技があった場合】：「覚えるたま！」と元気に肯定し、どのレベルや、どのわざマシンで覚えるかをカンペから抜き出して教えなさい。
+5. 【カンペの中に本当にない場合】のみ、「その技は覚えないたま！」とキッパリ否定しなさい。
+6. 語尾は必ず「〜だたま！」にすること。
 `;
 
     const fullPrompt = `${aiSystemPrompt}\n\n=== カンペ ===\n${cheatSheet || "データが見つからないたま！"}\n\n=== 質問 ===\n${rawText}`;
@@ -296,4 +300,3 @@ async function askPokemonAI() {
         document.getElementById(loadingId).innerText = "通信エラーだたま！";
     }
 }
-
