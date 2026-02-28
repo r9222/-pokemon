@@ -24,16 +24,10 @@
     <link href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap" rel="stylesheet">
 
     <style>
-        :root { 
-            --dex-red: #dd0b2d; 
-            --dex-dark: #222222; 
-            --dex-screen: #f8fcf8;
-            --user-msg: #e3f2fd;
-            --bot-msg: #ffffff;
-        }
+        :root { --dex-red: #dd0b2d; --dex-dark: #222222; --dex-screen: #f8fcf8; --user-msg: #e3f2fd; --bot-msg: #ffffff;}
         * { box-sizing: border-box; font-family: 'DotGothic16', sans-serif; }
-        body { margin: 0; padding: 0; background: #333; display: flex; justify-content: center; height: 100vh; overflow: hidden; }
-        .app-container { width: 100%; max-width: 500px; height: 100vh; height: 100dvh; background: var(--dex-screen); display: flex; flex-direction: column; position: relative; }
+        body { margin: 0; padding: 0; background: #333; display: flex; justify-content: center; height: 100vh; overflow: hidden;}
+        .app-container { width: 100%; max-width: 500px; height: 100vh; height: 100dvh; background: var(--dex-screen); display: flex; flex-direction: column; position: relative;}
         
         .chat-header {
             background: var(--dex-red);
@@ -56,10 +50,11 @@
             font-weight: bold;
             font-family: inherit;
         }
+        
         /* ▼▼ 追加：攻略サイトボタンのデザイン ▼▼ */
         .guide-btn {
             background: #fff; 
-            color: #2299ff; 
+            color: #2299ff; /* ポケ徹っぽい水色 */
             border: 1px solid #2299ff; 
             border-radius: 20px;
             padding: 4px 10px; 
