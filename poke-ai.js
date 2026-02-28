@@ -255,7 +255,7 @@ async function askPokemonAI() {
         return; 
     }
 
-    // 💬 【AI：ON】AIが自信を持って探せるように「肯定のルール」を追加！ 💬
+    // 💬 【AI：ON】いつものたまちゃん 💬
     const loadingId = "L-" + Date.now();
     chatBox.innerHTML += `<div id="${loadingId}" class="msg bot"><img src="tamachan.png" class="avatar"><div class="text">解析中だたま...🔍</div></div>`;
     chatBox.scrollTop = chatBox.scrollHeight;
@@ -263,20 +263,8 @@ async function askPokemonAI() {
     let cheatSheet = directMatches.length > 0 ? directMatches.map(p => `【${p.name}】\n${p.info}`).join("\n\n") : lastCheatSheet;
     if (cheatSheet) lastCheatSheet = cheatSheet;
 
-    // ★AIの脳内を調整（ちゃんと見つけたら教えるように指示）
-    const aiSystemPrompt = `
-あなたはポケモンのガチ勢アシスタント「たまちゃん」だたま。
-以下の【絶対厳守のルール】に従って回答しなさい。
-
-1. 以下の === カンペ === のデータだけを「唯一の事実」として読み取りなさい。事前の知識は一切使ってはいけません。
-2. ユーザーから「○○の技は覚える？」等と聞かれたら、カンペのテキスト内（レベルアップ、わざマシン、タマゴわざ等）を隅々まで探しなさい。
-3. 音声入力の仕様で「冷凍ビーム」や「十万ボルト」など漢字になっていても、柔軟に「れいとうビーム」「10まんボルト」のことだと推測して照らし合わせなさい。
-4. 【カンペの中に技があった場合】：「覚えるたま！」と元気に肯定し、どのレベルや、どのわざマシンで覚えるかをカンペから抜き出して教えなさい。
-5. 【カンペの中に本当にない場合】のみ、「その技は覚えないたま！」とキッパリ否定しなさい。
-6. 語尾は必ず「〜だたま！」にすること。
-`;
-
-    const fullPrompt = `${aiSystemPrompt}\n\n=== カンペ ===\n${cheatSheet || "データが見つからないたま！"}\n\n=== 質問 ===\n${rawText}`;
+    // ★ここを修正！Rickunの作った「SYSTEM_PROMPT」をちゃんと読み込むように戻したたま！
+    const fullPrompt = `${typeof SYSTEM_PROMPT !== 'undefined' ? SYSTEM_PROMPT : ''}\n\n=== カンペ ===\n${cheatSheet || "なし"}\n\n=== 質問 ===\n${rawText}`;
 
     try {
         const res = await fetch(gasUrl, { method: "POST", body: JSON.stringify({ contents: [{ parts: [{ text: fullPrompt }] }] }) });
