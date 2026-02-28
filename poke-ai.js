@@ -6,6 +6,7 @@ let lastCheatSheet = "";
 let recognition;
 let isRecording = false;
 
+// 設定の復元
 let isAiMode = localStorage.getItem('tama_ai_mode') !== 'false'; 
 let isTTSEnabled = localStorage.getItem('tama_tts_enabled') !== 'false';
 let currentAudio = null;
@@ -41,27 +42,45 @@ function updateToggleText() {
     ttsText.style.background = isTTSEnabled ? "#e8f5e9" : "#fff";
 }
 
-// ▼▼▼ 音声入力の漢字・ひらがなバグを修正するフィルター ▼▼▼
-function normalizePokemonName(text) {
-    let t = text.replace(/人影/g, "ヒトカゲ")
-                .replace(/不思議だね/g, "フシギダネ")
-                .replace(/不思議そう/g, "フシギソウ")
-                .replace(/不思議花/g, "フシギバナ")
-                .replace(/玉魂/g, "タマタマ")
-                .replace(/理沙/g, "リザード"); // リザードンと誤爆しないよう注意
-    
-    // ひらがなをすべてカタカナに変換する魔法のコード
-    t = t.replace(/[\u3041-\u3096]/g, function(match) {
-        return String.fromCharCode(match.charCodeAt(0) + 0x60);
-    });
-    return t;
+// ▼▼▼ 音声入力の「漢字バグ」を公式表記に全自動翻訳するフィルター ▼▼▼
+function fixVoiceInput(text) {
+    return text.replace(/人影/g, "ヒトカゲ")
+               .replace(/不思議だね/g, "フシギダネ")
+               .replace(/不思議そう/g, "フシギソウ")
+               .replace(/不思議花/g, "フシギバナ")
+               .replace(/玉魂/g, "タマタマ")
+               .replace(/理沙/g, "リザード")
+               .replace(/冷凍ビーム/g, "れいとうビーム")
+               .replace(/冷凍パンチ/g, "れいとうパンチ")
+               .replace(/十万ボルト|10万ボルト/g, "10まんボルト")
+               .replace(/火炎放射/g, "かえんほうしゃ")
+               .replace(/破壊光線/g, "はかいこうせん")
+               .replace(/波乗り/g, "なみのり")
+               .replace(/空を飛ぶ/g, "そらをとぶ")
+               .replace(/自己再生/g, "じこさいせい")
+               .replace(/大文字/g, "だいもんじ")
+               .replace(/電光石火/g, "でんこうせっか")
+               .replace(/怪力/g, "かいりき")
+               .replace(/地震/g, "じしん")
+               .replace(/吹雪/g, "ふぶき")
+               .replace(/雷/g, "かみなり")
+               .replace(/影分身/g, "かげぶんしん")
+               .replace(/恩返し/g, "おんがえし")
+               .replace(/穴を掘る/g, "あなをほる")
+               .replace(/眠る/g, "ねむる")
+               .replace(/剣の舞/g, "つるぎのまい")
+               .replace(/毒々/g, "どくどく");
 }
 
 function findPokemon(userText) {
     if (typeof POKE_DB === 'undefined') return [];
     const sortedDB = [...POKE_DB].sort((a, b) => b.name.length - a.name.length);
     let matches = [];
-    let searchTarget = normalizePokemonName(userText); // ここでフィルターを通す！
+    
+    // 検索用だけ、ひらがなをカタカナにして探しやすくする
+    let searchTarget = userText.replace(/[\u3041-\u3096]/g, function(match) {
+        return String.fromCharCode(match.charCodeAt(0) + 0x60);
+    });
 
     for (const p of sortedDB) {
         if (searchTarget.includes(p.name)) {
@@ -72,7 +91,7 @@ function findPokemon(userText) {
     return matches;
 }
 
-// ▼▼▼ 技ズレを完全に防ぐ「アンカー(碇)方式」ジェネレーター ▼▼▼
+// ▼▼▼ 美しいカードレイアウトジェネレーター ▼▼▼
 function createBeautifulCard(poke) {
     const pokeNum = parseInt(poke.no);
     const imgUrl = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${pokeNum}.png`;
@@ -94,7 +113,6 @@ function createBeautifulCard(poke) {
         if (l === "説明") { currentSection = 'desc'; continue; }
         if (l === "種族値") { currentSection = 'stats'; continue; }
         
-        // 技セクションの開始
         if (l.includes("覚えるわざ") || l.includes("ひでんマシン") || l.includes("教えてもらえる")) {
             currentSection = 'moves';
             moveBuffer = [];
@@ -102,7 +120,6 @@ function createBeautifulCard(poke) {
             continue;
         }
 
-        // 基本データ・種族値のバッジ化
         if (currentSection === 'stats' || currentSection === 'basic') {
             if (i + 1 < lines.length && lines[i].length <= 15 && lines[i+1].length <= 30 && !lines[i+1].includes("わざ") && lines[i+1] !== "説明" && lines[i+1] !== "種族値") {
                 statsHtml += `
@@ -113,27 +130,19 @@ function createBeautifulCard(poke) {
                 i++;
             }
         } 
-        // 説明文
         else if (currentSection === 'desc') {
             if (l !== "ファイアレッド" && l !== "リーフグリーン" && l !== "説明") {
                  descHtml += `<div style="font-size:13px; margin-bottom:8px; padding:8px 12px; background:#e8f5e9; border-left:4px solid #1976d2; border-radius:4px; color:#0d47a1; line-height:1.5;">${l.replace(/　/g, '')}</div>`;
             }
         } 
-        // ▼ ズレない技カード生成
         else if (currentSection === 'moves') {
-            // 見出し行はスキップ
             if (["レベル", "わざ名", "タイプ", "威力", "命中", "PP", "効果", "マシンNo"].includes(l)) continue;
-            
             moveBuffer.push(l);
-            
-            // バッファの中に「タイプ（ほのお等）」が含まれているか探す
             let typeIdx = moveBuffer.findIndex(x => typesList.includes(x));
-            
-            // タイプが見つかり、かつその後ろに「威力・命中・PP・効果」の4つが揃ったらカード化！
             if (typeIdx >= 1 && moveBuffer.length >= typeIdx + 5) {
                 let name = moveBuffer[typeIdx - 1];
                 let level = typeIdx >= 2 ? moveBuffer.slice(0, typeIdx - 1).join(" ") : "-";
-                if(level.length > 15) level = level.split(" ").pop(); // ゴミ回避
+                if(level.length > 15) level = level.split(" ").pop(); 
                 
                 let type = moveBuffer[typeIdx];
                 let power = moveBuffer[typeIdx + 1];
@@ -157,12 +166,7 @@ function createBeautifulCard(poke) {
                     <div style="font-size:11px; color:#555;">${eff}</div>
                 </div>`;
                 
-                moveBuffer = []; // 次の技のためにリセット
-            }
-            // エラー文が混ざっていた場合の処理
-            else if (moveBuffer.length > 0 && moveBuffer[moveBuffer.length-1].includes("登録されていない技")) {
-                movesHtml += `<div style="color:#e74c3c; font-size:11px; margin-bottom:6px;">※ ${moveBuffer[moveBuffer.length-1]}</div>`;
-                moveBuffer = [];
+                moveBuffer = []; 
             }
         }
     }
@@ -229,8 +233,11 @@ function stopMic() { isRecording = false; document.getElementById('mic-btn').cla
 // ▼▼▼ メインロジック ▼▼▼
 async function askPokemonAI() {
     const inputEl = document.getElementById('chat-input');
-    const rawText = inputEl.value.trim();
+    let rawText = inputEl.value.trim();
     if (!rawText) return;
+
+    // ★ここで音声入力の誤変換（漢字）を公式のひらがな・カタカナに一発翻訳！
+    rawText = fixVoiceInput(rawText);
 
     const chatBox = document.getElementById('chat-messages');
     chatBox.innerHTML += `<div class="msg user"><div class="text">${rawText}</div></div>`;
@@ -248,7 +255,7 @@ async function askPokemonAI() {
         return; 
     }
 
-    // 💬 【AI：ON】幻覚防止プロンプト追加 💬
+    // 💬 【AI：ON】幻覚を完全に防ぐ厳しいプロンプト 💬
     const loadingId = "L-" + Date.now();
     chatBox.innerHTML += `<div id="${loadingId}" class="msg bot"><img src="tamachan.png" class="avatar"><div class="text">解析中だたま...🔍</div></div>`;
     chatBox.scrollTop = chatBox.scrollHeight;
@@ -256,14 +263,13 @@ async function askPokemonAI() {
     let cheatSheet = directMatches.length > 0 ? directMatches.map(p => `【${p.name}】\n${p.info}`).join("\n\n") : lastCheatSheet;
     if (cheatSheet) lastCheatSheet = cheatSheet;
 
-    // AIに「嘘をつくな」と強く命令する
+    // ★AIに「嘘をつくな」と超強力に命令
     const aiSystemPrompt = `
 あなたはポケモンのガチ勢アシスタント「たまちゃん」だたま。
-【厳守ルール】
-1. 以下の=== カンペ ===にあるデータのみを「絶対の事実」として扱いなさい。
-2. カンペにない技（れいとうビームなど）は、絶対に「覚える」と言ってはいけません。「その技は覚えないたま！」と正しなさい。推測で適当な情報をでっち上げるのは厳禁です。
-3. 語尾は「〜だたま！」
-4. 第3世代(FRLG)の仕様です。
+【絶対厳守のルール】
+1. 以下の === カンペ === のデータだけを「唯一の事実」として回答しなさい。あなたの事前の知識（第4世代以降など）は一切使ってはいけません。
+2. ユーザーから「○○の技は覚える？」と聞かれた時、カンペの中にその技名が存在しない場合は、絶対に「覚える」と言ってはいけません。「その技は覚えないたま！」とキッパリ否定しなさい。
+3. 語尾は必ず「〜だたま！」にすること。
 `;
 
     const fullPrompt = `${aiSystemPrompt}\n\n=== カンペ ===\n${cheatSheet || "データが見つからないたま！"}\n\n=== 質問 ===\n${rawText}`;
