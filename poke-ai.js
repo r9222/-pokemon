@@ -6,6 +6,21 @@ let lastCheatSheet = "";
 let recognition;
 let isRecording = false;
 
+// アプリ強制アップデート
+function forceUpdateApp() {
+    if (confirm("サーバーから最新の攻略データを読み込むたま！\nよろしいだたま？")) {
+        if ('serviceWorker' in navigator) {
+            caches.keys().then((keyList) => Promise.all(keyList.map((key) => caches.delete(key))))
+            .then(() => {
+                navigator.serviceWorker.getRegistrations().then((registrations) => {
+                    for(let registration of registrations) registration.unregister();
+                    window.location.reload(true);
+                });
+            });
+        } else window.location.reload(true);
+    }
+}
+
 // 設定の復元
 let isAiMode = localStorage.getItem('tama_ai_mode') !== 'false'; 
 let isTTSEnabled = localStorage.getItem('tama_tts_enabled') !== 'false';
@@ -42,15 +57,15 @@ function updateToggleText() {
     ttsText.style.background = isTTSEnabled ? "#e8f5e9" : "#fff";
 }
 
-// 音声入力の「漢字バグ」を公式表記に全自動翻訳するフィルター
+// ▼▼▼ 音声の「漢字バグ」を公式表記に直す最強フィルター ▼▼▼
 function fixVoiceInput(text) {
     return text.replace(/人影/g, "ヒトカゲ")
-               .replace(/不思議だね/g, "フシギダネ")
-               .replace(/不思議そう/g, "フシギソウ")
-               .replace(/不思議花/g, "フシギバナ")
-               .replace(/玉魂/g, "タマタマ")
+               .replace(/不思議だね|ふしぎだね/g, "フシギダネ")
+               .replace(/不思議そう|ふしぎそう/g, "フシギソウ")
+               .replace(/不思議花|ふしぎばな/g, "フシギバナ")
+               .replace(/玉魂|たまたま/g, "タマタマ")
                .replace(/理沙/g, "リザード")
-               .replace(/冷凍ビーム/g, "れいとうビーム")
+               .replace(/冷凍ビーム|れいとうびーむ/g, "れいとうビーム")
                .replace(/冷凍パンチ/g, "れいとうパンチ")
                .replace(/十万ボルト|10万ボルト/g, "10まんボルト")
                .replace(/火炎放射/g, "かえんほうしゃ")
@@ -69,15 +84,13 @@ function fixVoiceInput(text) {
                .replace(/穴を掘る/g, "あなをほる")
                .replace(/眠る/g, "ねむる")
                .replace(/剣の舞/g, "つるぎのまい")
-               .replace(/毒々/g, "どくどく");
+               .replace(/毒々|毒毒/g, "どくどく");
 }
 
 function findPokemon(userText) {
     if (typeof POKE_DB === 'undefined') return [];
     const sortedDB = [...POKE_DB].sort((a, b) => b.name.length - a.name.length);
     let matches = [];
-    
-    // 検索用だけ、ひらがなをカタカナにして探しやすくする
     let searchTarget = userText.replace(/[\u3041-\u3096]/g, function(match) {
         return String.fromCharCode(match.charCodeAt(0) + 0x60);
     });
@@ -91,7 +104,50 @@ function findPokemon(userText) {
     return matches;
 }
 
-// 美しいカードレイアウトジェネレーター
+// ▼▼▼ AIに渡すための「超・読みやすいカンペ」を作る関数 ▼▼▼
+function formatInfoForAI(infoText) {
+    const lines = infoText.split('\n').map(l => l.trim()).filter(l => l !== "");
+    let cleanText = "";
+    let currentSection = "";
+    let moveBuffer = [];
+    const typesList = ["ノーマル","ほのお","みず","でんき","くさ","こおり","かくとう","どく","じめん","ひこう","エスパー","むし","いわ","ゴースト","ドラゴン","はがね","あく","？？？"];
+    
+    for (let i = 0; i < lines.length; i++) {
+        let l = lines[i];
+        if (l.includes("All rights reserved") || l.includes("Present by") || l === "戻る") continue;
+        
+        if (l.includes("覚えるわざ") || l.includes("ひでんマシン") || l.includes("教えてもらえる")) {
+            currentSection = 'moves';
+            cleanText += `\n[${l}]\n`;
+            moveBuffer = [];
+            continue;
+        }
+        if (l === "説明" || l === "種族値") { currentSection = 'stats'; cleanText += `\n[${l}]\n`; continue; }
+        
+        if (currentSection === 'moves') {
+            if (["レベル", "わざ名", "タイプ", "威力", "命中", "PP", "効果", "マシンNo"].includes(l)) continue;
+            if (l.includes("登録されていない技")) { moveBuffer = []; continue; } // ゴミデータ排除
+
+            moveBuffer.push(l);
+            let typeIdx = moveBuffer.findIndex(x => typesList.includes(x));
+            if (typeIdx >= 1 && moveBuffer.length >= typeIdx + 5) {
+                let name = moveBuffer[typeIdx - 1];
+                let level = typeIdx >= 2 ? moveBuffer.slice(0, typeIdx - 1).join(" ") : "-";
+                if(level.length > 10) level = level.split(" ").pop(); 
+                cleanText += `・${name} (条件:${level}, タイプ:${moveBuffer[typeIdx]}, 威力:${moveBuffer[typeIdx + 1]})\n`;
+                moveBuffer = [];
+            }
+        } else {
+            if (i + 1 < lines.length && lines[i].length <= 10 && lines[i+1].length <= 20 && !lines[i+1].includes("わざ")) {
+                cleanText += `${l}: ${lines[i+1]}\n`;
+                i++;
+            } else { cleanText += `${l}\n`; }
+        }
+    }
+    return cleanText;
+}
+
+// ▼▼▼ 画面に表示する「美しいカード」を作る関数（ズレ防止の鉄壁版） ▼▼▼
 function createBeautifulCard(poke) {
     const pokeNum = parseInt(poke.no);
     const imgUrl = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${pokeNum}.png`;
@@ -104,7 +160,8 @@ function createBeautifulCard(poke) {
     
     let currentSection = 'basic';
     let moveBuffer = [];
-    const typesList = ["ノーマル","ほのお","みず","でんき","くさ","こおり","かくとう","どく","じめん","ひこう","エスパー","むし","いわ","ゴースト","ドラゴン","はがね","あく"];
+    // ★「のろい」用の「？？？」を追加して配列ズレを完全防止！！
+    const typesList = ["ノーマル","ほのお","みず","でんき","くさ","こおり","かくとう","どく","じめん","ひこう","エスパー","むし","いわ","ゴースト","ドラゴン","はがね","あく","？？？"];
     
     for (let i = 0; i < lines.length; i++) {
         let l = lines[i];
@@ -137,8 +194,18 @@ function createBeautifulCard(poke) {
         } 
         else if (currentSection === 'moves') {
             if (["レベル", "わざ名", "タイプ", "威力", "命中", "PP", "効果", "マシンNo"].includes(l)) continue;
+            
+            // ★未登録エラーテキストが出たら、強制リセットしてズレを食い止める
+            if (l.includes("登録されていない技")) {
+                let badMove = moveBuffer.length > 0 ? moveBuffer[moveBuffer.length - 1] : "不明な技";
+                movesHtml += `<div style="color:#c0392b; font-size:11px; margin-bottom:6px; background:#fadbd8; padding:4px; border-radius:4px;">※ [${badMove}] はデータベース欠損だたま！</div>`;
+                moveBuffer = [];
+                continue;
+            }
+
             moveBuffer.push(l);
             let typeIdx = moveBuffer.findIndex(x => typesList.includes(x));
+            
             if (typeIdx >= 1 && moveBuffer.length >= typeIdx + 5) {
                 let name = moveBuffer[typeIdx - 1];
                 let level = typeIdx >= 2 ? moveBuffer.slice(0, typeIdx - 1).join(" ") : "-";
@@ -152,9 +219,11 @@ function createBeautifulCard(poke) {
                 
                 let tColor = "#555";
                 if(type==="ほのお") tColor="#e74c3c";
-                else if(type==="みず") tColor="#3498db";
+                else if(type==="みず" || type==="こおり") tColor="#3498db";
                 else if(type==="くさ") tColor="#2ecc71";
                 else if(type==="でんき") tColor="#f1c40f";
+                else if(type==="エスパー" || type==="どく") tColor="#9b59b6";
+                else if(type==="じめん" || type==="いわ" || type==="かくとう") tColor="#e67e22";
                 
                 movesHtml += `
                 <div style="background:#fff; border:1px solid #ddd; border-left:4px solid ${tColor}; border-radius:4px; padding:8px; margin-bottom:6px; box-shadow:1px 1px 2px rgba(0,0,0,0.05);">
@@ -165,7 +234,6 @@ function createBeautifulCard(poke) {
                     <div style="font-size:11px; color:#e74c3c; margin-bottom:4px;">威力:${power} / 命中:${acc} / PP:${pp}</div>
                     <div style="font-size:11px; color:#555;">${eff}</div>
                 </div>`;
-                
                 moveBuffer = []; 
             }
         }
@@ -236,7 +304,6 @@ async function askPokemonAI() {
     let rawText = inputEl.value.trim();
     if (!rawText) return;
 
-    // 音声入力の誤変換（漢字）を公式のひらがな・カタカナに一発翻訳
     rawText = fixVoiceInput(rawText);
 
     const chatBox = document.getElementById('chat-messages');
@@ -255,16 +322,28 @@ async function askPokemonAI() {
         return; 
     }
 
-    // 💬 【AI：ON】いつものたまちゃん 💬
+    // 💬 【AI：ON】 💬
     const loadingId = "L-" + Date.now();
     chatBox.innerHTML += `<div id="${loadingId}" class="msg bot"><img src="tamachan.png" class="avatar"><div class="text">解析中だたま...🔍</div></div>`;
     chatBox.scrollTop = chatBox.scrollHeight;
 
-    let cheatSheet = directMatches.length > 0 ? directMatches.map(p => `【${p.name}】\n${p.info}`).join("\n\n") : lastCheatSheet;
+    // ★AIには、ゴミを排除した「超綺麗なリスト」に翻訳してから渡す！
+    let cheatSheet = directMatches.length > 0 ? directMatches.map(p => `【${p.name}】\n${formatInfoForAI(p.info)}`).join("\n\n") : lastCheatSheet;
     if (cheatSheet) lastCheatSheet = cheatSheet;
 
-    // ★ここを修正！Rickunの作った「SYSTEM_PROMPT」をちゃんと読み込むように戻したたま！
-    const fullPrompt = `${typeof SYSTEM_PROMPT !== 'undefined' ? SYSTEM_PROMPT : ''}\n\n=== カンペ ===\n${cheatSheet || "なし"}\n\n=== 質問 ===\n${rawText}`;
+    // ★Rickunの「SYSTEM_PROMPT」を読み込み、さらに技探しの絶対ルールを強制！
+    const fullPrompt = `${typeof SYSTEM_PROMPT !== 'undefined' ? SYSTEM_PROMPT : ''}
+
+【★AIたまちゃんへの絶対命令★】
+1. ユーザーから「○○の技は覚える？」と聞かれた際、以下の「カンペ」の中にその技が【存在すれば】「覚えるたま！」と答え、習得条件（LvやマシンNo）を教えること。
+2. もしリスト内に【存在しなければ】、「その技は覚えないたま！」と必ず否定すること。事前の知識で嘘をつくのは厳禁。
+3. ユーザーが漢字で「冷凍ビーム」「十万ボルト」等と聞いてきても、カンペの「れいとうビーム」「10まんボルト」と同一だと柔軟に解釈して探すこと。
+
+=== カンペ ===
+${cheatSheet || "なし"}
+
+=== 質問 ===
+${rawText}`;
 
     try {
         const res = await fetch(gasUrl, { method: "POST", body: JSON.stringify({ contents: [{ parts: [{ text: fullPrompt }] }] }) });
