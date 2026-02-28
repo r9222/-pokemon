@@ -21,7 +21,6 @@ function forceUpdateApp() {
     }
 }
 
-// 設定の復元
 let isAiMode = localStorage.getItem('tama_ai_mode') !== 'false'; 
 let isTTSEnabled = localStorage.getItem('tama_tts_enabled') !== 'false';
 let currentAudio = null;
@@ -57,7 +56,7 @@ function updateToggleText() {
     ttsText.style.background = isTTSEnabled ? "#e8f5e9" : "#fff";
 }
 
-// ▼▼▼ 音声の「漢字バグ」を公式表記に直す最強フィルター ▼▼▼
+// 音声入力の「漢字バグ」を公式表記に全自動翻訳するフィルター
 function fixVoiceInput(text) {
     return text.replace(/人影/g, "ヒトカゲ")
                .replace(/不思議だね|ふしぎだね/g, "フシギダネ")
@@ -104,7 +103,44 @@ function findPokemon(userText) {
     return matches;
 }
 
-// ▼▼▼ AIに渡すための「超・読みやすいカンペ」を作る関数 ▼▼▼
+// ▼▼▼ 追加：全ポケモンから「技」の情報を抜き出す神機能 ▼▼▼
+function searchMoveInfo(moveName) {
+    if (typeof POKE_DB === 'undefined') return null;
+    let moveData = null;
+    let learningPokemons = [];
+    const typesList = ["ノーマル","ほのお","みず","でんき","くさ","こおり","かくとう","どく","じめん","ひこう","エスパー","むし","いわ","ゴースト","ドラゴン","はがね","あく","？？？"];
+    
+    for (const poke of POKE_DB) {
+        const lines = poke.info.split('\n').map(l => l.trim());
+        let idx = lines.indexOf(moveName); // 技名と完全に一致する行を探す
+        
+        if (idx !== -1 && idx + 5 < lines.length) {
+            const type = lines[idx+1];
+            // その下の行がタイプ名なら「技データ」と確定
+            if (typesList.includes(type)) {
+                if (!moveData) {
+                    moveData = {
+                        name: moveName,
+                        type: type,
+                        power: lines[idx+2],
+                        acc: lines[idx+3],
+                        pp: lines[idx+4],
+                        effect: lines[idx+5]
+                    };
+                }
+                learningPokemons.push(poke.name);
+            }
+        }
+    }
+    
+    // 見つかったら、AIへのカンペとして整形して返す
+    if (moveData) {
+        const uniquePokemons = [...new Set(learningPokemons)]; // 重複を消す
+        return `【技データ】\n技名: ${moveData.name}\nタイプ: ${moveData.type}\n威力: ${moveData.power}\n命中: ${moveData.acc}\nPP: ${moveData.pp}\n効果: ${moveData.effect}\n\n【この技を覚える代表的なポケモン】\n${uniquePokemons.slice(0, 8).join("、")} など`;
+    }
+    return null;
+}
+
 function formatInfoForAI(infoText) {
     const lines = infoText.split('\n').map(l => l.trim()).filter(l => l !== "");
     let cleanText = "";
@@ -126,7 +162,7 @@ function formatInfoForAI(infoText) {
         
         if (currentSection === 'moves') {
             if (["レベル", "わざ名", "タイプ", "威力", "命中", "PP", "効果", "マシンNo"].includes(l)) continue;
-            if (l.includes("登録されていない技")) { moveBuffer = []; continue; } // ゴミデータ排除
+            if (l.includes("登録されていない技")) { moveBuffer = []; continue; } 
 
             moveBuffer.push(l);
             let typeIdx = moveBuffer.findIndex(x => typesList.includes(x));
@@ -147,25 +183,21 @@ function formatInfoForAI(infoText) {
     return cleanText;
 }
 
-// ▼▼▼ 画面に表示する「美しいカード」を作る関数（ズレ防止の鉄壁版） ▼▼▼
 function createBeautifulCard(poke) {
     const pokeNum = parseInt(poke.no);
     const imgUrl = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${pokeNum}.png`;
 
     const lines = poke.info.split('\n').map(l => l.trim()).filter(l => l !== "");
-    
     let statsHtml = '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px; margin-top: 10px;">';
     let descHtml = '';
     let movesHtml = '';
     
     let currentSection = 'basic';
     let moveBuffer = [];
-    // ★「のろい」用の「？？？」を追加して配列ズレを完全防止！！
     const typesList = ["ノーマル","ほのお","みず","でんき","くさ","こおり","かくとう","どく","じめん","ひこう","エスパー","むし","いわ","ゴースト","ドラゴン","はがね","あく","？？？"];
     
     for (let i = 0; i < lines.length; i++) {
         let l = lines[i];
-        
         if (l === poke.name || l === "No" || l === poke.no || l === "ポケモン図鑑絵" || l === "戻る" || l === "1" || l.includes("All rights reserved") || l.includes("Present by")) continue;
         if (l === "説明") { currentSection = 'desc'; continue; }
         if (l === "種族値") { currentSection = 'stats'; continue; }
@@ -195,7 +227,6 @@ function createBeautifulCard(poke) {
         else if (currentSection === 'moves') {
             if (["レベル", "わざ名", "タイプ", "威力", "命中", "PP", "効果", "マシンNo"].includes(l)) continue;
             
-            // ★未登録エラーテキストが出たら、強制リセットしてズレを食い止める
             if (l.includes("登録されていない技")) {
                 let badMove = moveBuffer.length > 0 ? moveBuffer[moveBuffer.length - 1] : "不明な技";
                 movesHtml += `<div style="color:#c0392b; font-size:11px; margin-bottom:6px; background:#fadbd8; padding:4px; border-radius:4px;">※ [${badMove}] はデータベース欠損だたま！</div>`;
@@ -327,23 +358,25 @@ async function askPokemonAI() {
     chatBox.innerHTML += `<div id="${loadingId}" class="msg bot"><img src="tamachan.png" class="avatar"><div class="text">解析中だたま...🔍</div></div>`;
     chatBox.scrollTop = chatBox.scrollHeight;
 
-    // ★AIには、ゴミを排除した「超綺麗なリスト」に翻訳してから渡す！
-    let cheatSheet = directMatches.length > 0 ? directMatches.map(p => `【${p.name}】\n${formatInfoForAI(p.info)}`).join("\n\n") : lastCheatSheet;
-    if (cheatSheet) lastCheatSheet = cheatSheet;
+    let cheatSheet = "";
+    
+    // ★ ポケモンの名前でヒットした場合
+    if (directMatches.length > 0) {
+        cheatSheet = directMatches.map(p => `【${p.name}】\n${formatInfoForAI(p.info)}`).join("\n\n");
+        lastCheatSheet = cheatSheet;
+    } 
+    // ★ ポケモンの名前が見つからない場合、全データから「技名」として検索する！
+    else {
+        const moveInfo = searchMoveInfo(rawText);
+        if (moveInfo) {
+            cheatSheet = moveInfo; // AIに「技のデータ」をカンペとして渡す
+            lastCheatSheet = cheatSheet;
+        } else {
+            cheatSheet = lastCheatSheet; // それもなければ前の話題を引き継ぐ
+        }
+    }
 
-    // ★Rickunの「SYSTEM_PROMPT」を読み込み、さらに技探しの絶対ルールを強制！
-    const fullPrompt = `${typeof SYSTEM_PROMPT !== 'undefined' ? SYSTEM_PROMPT : ''}
-
-【★AIたまちゃんへの絶対命令★】
-1. ユーザーから「○○の技は覚える？」と聞かれた際、以下の「カンペ」の中にその技が【存在すれば】「覚えるたま！」と答え、習得条件（LvやマシンNo）を教えること。
-2. もしリスト内に【存在しなければ】、「その技は覚えないたま！」と必ず否定すること。事前の知識で嘘をつくのは厳禁。
-3. ユーザーが漢字で「冷凍ビーム」「十万ボルト」等と聞いてきても、カンペの「れいとうビーム」「10まんボルト」と同一だと柔軟に解釈して探すこと。
-
-=== カンペ ===
-${cheatSheet || "なし"}
-
-=== 質問 ===
-${rawText}`;
+    const fullPrompt = `${typeof SYSTEM_PROMPT !== 'undefined' ? SYSTEM_PROMPT : ''}\n\n=== カンペ ===\n${cheatSheet || "データが見つからないたま！"}\n\n=== 質問 ===\n${rawText}`;
 
     try {
         const res = await fetch(gasUrl, { method: "POST", body: JSON.stringify({ contents: [{ parts: [{ text: fullPrompt }] }] }) });
