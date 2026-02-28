@@ -1,7 +1,7 @@
 {
   "name": "ポケモン攻略たまちゃん",
   "short_name": "攻略たま",
-  "start_url": "./poke-index.html",
+  "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#ff4757",
   "theme_color": "#ff4757",
