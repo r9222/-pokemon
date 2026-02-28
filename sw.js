@@ -1,6 +1,6 @@
 // sw.js
 // ▼ここを変えるとスマホ側に「アップデートがあるよ！」と強制的に伝わります
-const CACHE_NAME = 'tama-navi-v2.0'; 
+const CACHE_NAME = 'tama-navi-v2.1'; 
 
 const ASSETS = [
     './',
@@ -42,3 +42,4 @@ self.addEventListener('fetch', (e) => {
         fetch(e.request).catch(() => caches.match(e.request))
     );
 });
+
