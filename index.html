@@ -24,102 +24,174 @@
     <link href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap" rel="stylesheet">
 
     <style>
-        :root { --dex-red: #dd0b2d; --dex-dark: #222222; --dex-screen: #98cb98; --dex-metal: #d8d8d8; }
-        * { box-sizing: border-box; }
-        body { font-family: 'DotGothic16', sans-serif; background: #111; margin: 0; padding: 0; overflow: hidden; }
-        .container { max-width: 600px; margin: 0 auto; background: var(--dex-red); height: 100dvh; display: flex; flex-direction: column; box-shadow: inset -5px -5px 15px rgba(0,0,0,0.3); }
+        :root { 
+            --dex-red: #dd0b2d; 
+            --dex-dark: #222222; 
+            --dex-screen: #f8fcf8;
+            --user-msg: #e3f2fd;
+            --bot-msg: #ffffff;
+        }
+        * { box-sizing: border-box; font-family: 'DotGothic16', sans-serif; }
+        body { margin: 0; padding: 0; background: #333; display: flex; justify-content: center; height: 100vh; overflow: hidden; }
+        .app-container { width: 100%; max-width: 500px; height: 100vh; height: 100dvh; background: var(--dex-screen); display: flex; flex-direction: column; position: relative; }
         
-        /* 上部ベゼル */
-        .top-bezel { padding: 15px 20px 10px; display: flex; gap: 10px; border-bottom: 2px solid #880015; background: linear-gradient(180deg, #ff3b5c, var(--dex-red)); padding-top: calc(15px + env(safe-area-inset-top)); }
-        .main-lens { width: 45px; height: 45px; border-radius: 50%; background: radial-gradient(circle at 30% 30%, #5ce6e6, #0e85a5 60%, #002233); border: 3px solid #ddd; flex-shrink: 0;}
-        .header-title { color: white; font-size: 18px; text-shadow: 2px 2px 0 #333; align-self: center; margin-left: 5px;}
-        
-        /* 🔄更新ボタン */
-        .update-btn { margin-left: auto; align-self: center; background: #222; color: #fff; border: 2px solid #ddd; border-radius: 5px; padding: 6px 10px; font-family: 'DotGothic16', sans-serif; font-size: 13px; cursor: pointer; box-shadow: 2px 2px 0 #333; transition: 0.1s; display: flex; align-items: center; gap: 4px; }
-        .update-btn:active { transform: translate(2px, 2px); box-shadow: 0 0 0; }
+        .chat-header {
+            background: var(--dex-red);
+            color: white;
+            padding: 10px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            z-index: 10;
+        }
+        .update-btn {
+            background: #ff4d4d;
+            color: white;
+            border: 1px solid #fff;
+            padding: 4px 10px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: bold;
+            font-family: inherit;
+        }
+        /* ▼▼ 追加：攻略サイトボタンのデザイン ▼▼ */
+        .guide-btn {
+            background: #fff; 
+            color: #2299ff; 
+            border: 1px solid #2299ff; 
+            border-radius: 20px;
+            padding: 4px 10px; 
+            font-size: 12px; 
+            font-weight: bold;
+            font-family: inherit;
+            cursor: pointer;
+        }
+        .guide-btn:active {
+            background: #2299ff;
+            color: #fff;
+        }
 
-        /* スクリーン */
-        .screen-container { background: var(--dex-dark); margin: 15px; padding: 15px; border-radius: 10px 10px 40px 10px; display: flex; flex-direction: column; flex: 1; min-height: 0; box-shadow: inset 0 0 10px black; }
-        #chat-messages { flex: 1; overflow-y: auto; background-color: var(--dex-screen); background-image: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%); background-size: 100% 4px; border: 3px solid #555; border-radius: 5px; padding: 12px; }
+        .chat-messages {
+            flex: 1;
+            padding: 15px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            background: var(--dex-screen);
+        }
+        .msg { display: flex; max-width: 85%; }
+        .msg.user { align-self: flex-end; flex-direction: row-reverse; }
+        .msg.bot { align-self: flex-start; }
+        .msg .avatar { width: 40px; height: 40px; border-radius: 50%; margin: 0 10px; border: 2px solid var(--dex-red); background: white; object-fit: cover; }
+        .msg .text { padding: 10px 15px; border-radius: 15px; font-size: 15px; line-height: 1.5; word-break: break-word; box-shadow: 1px 1px 3px rgba(0,0,0,0.1); }
+        .msg.user .text { background: var(--user-msg); border-top-right-radius: 2px; }
+        .msg.bot .text { background: var(--bot-msg); border-top-left-radius: 2px; border: 1px solid #ddd; }
         
-        /* データカード */
-        .data-card { width: 100%; background: #fff; border: 2px solid #222; border-radius: 5px; margin-bottom: 15px; box-shadow: 2px 2px 0 #222; overflow: hidden; animation: slideIn 0.2s ease; }
-        .data-card-header { background: #222; color: #fff; padding: 8px 10px; font-size: 14px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; }
-
-        /* チャット吹き出し */
-        .msg { display: flex; margin-bottom: 15px; animation: slideIn 0.2s ease; align-items: flex-start; }
-        .msg.user { justify-content: flex-end; }
-        .avatar { width: 40px; height: 40px; object-fit: contain; flex-shrink: 0; margin-right: 8px; filter: drop-shadow(1px 1px 0px rgba(0,0,0,0.2)); }
-        .msg .text { padding: 10px 12px; max-width: 85%; font-size: 14px; background: white; border: 2px solid #222; box-shadow: 2px 2px 0 #222; line-height: 1.5; }
-        .msg.bot .text { border-radius: 5px 15px 15px 15px; }
-        .msg.user .text { background: #f1c40f; border-radius: 15px 5px 15px 15px; margin-right: 0; }
+        .input-area {
+            background: white;
+            padding: 10px 15px;
+            border-top: 2px solid #ddd;
+            padding-bottom: env(safe-area-inset-bottom, 15px);
+        }
         
-        .search-link { display: inline-block; background: #222; color: #fff; padding: 6px 10px; border-radius: 5px; text-decoration: none; margin-top: 8px; font-size: 12px; }
-
-        /* コントロールパネル */
-        .control-panel { background: var(--dex-metal); border-top: 4px solid #888; padding: 15px 15px calc(15px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; align-items: center; flex-shrink: 0; }
-        .main-controls { display: flex; align-items: flex-start; justify-content: space-between; width: 100%; padding: 0 5px; margin-top: -45px; }
-
-        /* モンスターボールマイク */
-        .pokeball-btn { width: 85px; height: 85px; border-radius: 50%; background: linear-gradient(to bottom, #ff3030 46%, #222 46%, #222 54%, #fff 54%); border: 4px solid #222; box-shadow: 0 5px 10px rgba(0,0,0,0.4); cursor: pointer; display: flex; justify-content: center; align-items: center; transition: transform 0.1s; }
-        .pokeball-btn:active { transform: scale(0.95); }
-        .pokeball-center { width: 26px; height: 26px; background: #fff; border: 3px solid #222; border-radius: 50%; }
-        .pokeball-btn.active .pokeball-center { background: #ff4757; box-shadow: 0 0 15px #ff4757; animation: blink 1s infinite; }
-        
-        /* スライダートグルスイッチ */
-        .toggle-group { display: flex; flex-direction: column; align-items: center; gap: 8px; width: 100px; margin-top: 10px; }
-        .switch { position: relative; display: inline-block; width: 56px; height: 30px; }
+        .controls-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .toggle-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        .toggle-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .switch { position: relative; display: inline-block; width: 40px; height: 22px; }
         .switch input { opacity: 0; width: 0; height: 0; }
-        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #888; transition: .3s; border-radius: 30px; border: 2px solid #222; box-shadow: inset 1px 1px 3px rgba(0,0,0,0.3); }
-        .slider:before { position: absolute; content: ""; height: 22px; width: 22px; left: 2px; bottom: 2px; background-color: white; transition: .3s; border-radius: 50%; border: 2px solid #222; z-index: 2; }
-        input:checked + .slider { background-color: #2ed573; }
-        input:checked + .slider:before { transform: translateX(26px); }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 22px; }
+        .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: #4caf50; }
+        input:checked + .slider:before { transform: translateX(18px); }
+        .toggle-status-text { font-size: 11px; font-weight: bold; background: #eee; padding: 2px 6px; border-radius: 4px; }
+        
+        .mic-btn-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .mic-btn {
+            width: 50px; height: 50px;
+            border-radius: 50%;
+            background: #f1f1f1;
+            border: 2px solid #ddd;
+            font-size: 20px;
+            display: flex; justify-content: center; align-items: center;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .mic-btn.active {
+            background: #ffebee;
+            border-color: #f44336;
+            color: #f44336;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse { 0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(244,67,54,0.4); } 70% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(244,67,54,0); } 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(244,67,54,0); } }
+        .mic-status-text { font-size: 10px; color: #888; margin-top: 4px; }
 
-        .toggle-status-text { font-size: 11px; font-weight: bold; color: #222; background: #fff; padding: 4px 8px; border-radius: 12px; border: 2px solid #aaa; text-align: center; width: 100%; box-shadow: 1px 1px 0 #aaa; }
-
-        .mic-status-text { font-size: 12px; color: #555; margin: 15px 0 8px; font-weight: bold; }
-        .text-input-row { display: flex; gap: 8px; width: 100%; }
-        input[type="text"] { flex: 1; padding: 12px; border: 2px solid #888; border-radius: 8px; font-family: 'DotGothic16', sans-serif; font-size: 14px; background: #eee; }
-        input[type="text"]:focus { background: #fff; outline: 2px solid var(--dex-red); }
-        .send-btn { background: #222; color: white; border: none; padding: 0 15px; border-radius: 8px; font-family: 'DotGothic16', sans-serif; cursor: pointer; box-shadow: 2px 2px 0 #555; transition: 0.1s; }
-        .send-btn:active { transform: translate(2px, 2px); box-shadow: 0 0 0; }
-
-        @keyframes blink { 50% { opacity: 0.3; } }
-        @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .text-input-row { display: flex; gap: 8px; }
+        #chat-input { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 20px; font-size: 14px; outline: none; }
+        .send-btn { background: var(--dex-red); color: white; border: none; padding: 0 15px; border-radius: 20px; font-weight: bold; cursor: pointer; }
+        .search-link { color: #1976d2; text-decoration: none; font-weight: bold; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="top-bezel">
-            <div class="main-lens"></div>
-            <div class="header-title">ﾀﾏﾁｬﾝ_Navi</div>
-            <button class="update-btn" onclick="forceUpdateApp()">🔄 更新</button>
-        </div>
-        
-        <div class="screen-container">
-            <div id="chat-messages">
-                <div class="msg bot"><img src="tamachan.png" class="avatar"><div class="text">攻略データリンク完了だたま！</div></div>
+    <div class="app-container">
+        <div class="chat-header">
+            <div>
+                <div style="font-size: 14px; font-weight: bold; margin-bottom: 2px;">FRLG ガチ攻略</div>
+                <div style="font-size: 10px; opacity: 0.8;">図鑑 ✕ AIサポーター</div>
+            </div>
+            <div style="display: flex; gap: 8px;">
+                <button class="guide-btn" onclick="window.open('https://yakkun.com/fl/chart1.htm', '_blank')">攻略サイト</button>
+                <button class="update-btn" onclick="forceUpdateApp()">更新</button>
             </div>
         </div>
         
-        <div class="control-panel">
-            <div class="main-controls">
-                <div class="toggle-group">
-                    <label class="switch"><input type="checkbox" id="ai-checkbox" onchange="toggleMode()"><span class="slider"></span></label>
-                    <div id="ai-status-text" class="toggle-status-text">AI：ON</div>
-                </div>
-                
-                <div id="mic-btn" class="pokeball-btn" onclick="toggleMic()">
-                    <div class="pokeball-center"></div>
-                </div>
-
-                <div class="toggle-group">
-                    <label class="switch"><input type="checkbox" id="tts-checkbox" onchange="toggleTTS()"><span class="slider"></span></label>
-                    <div id="tts-status-text" class="toggle-status-text">読上：ON</div>
+        <div class="chat-messages" id="chat-messages">
+            <div class="msg bot">
+                <img src="tamachan.png" class="avatar">
+                <div class="text">
+                    やっほー！たまちゃんだたま！<br>
+                    ポケモンの名前や技名、気になることを何でも聞いてほしいだたま！
                 </div>
             </div>
+        </div>
 
-            <div id="mic-status" class="mic-status-text">タップして話す</div>
+        <div class="input-area">
+            <div class="controls-row">
+                <div class="toggle-group">
+                    <div class="toggle-item">
+                        <label class="switch"><input type="checkbox" id="ai-checkbox" onchange="toggleMode()"><span class="slider"></span></label>
+                        <div id="ai-status-text" class="toggle-status-text">AI：ON</div>
+                    </div>
+                    <div class="toggle-item">
+                        <label class="switch"><input type="checkbox" id="tts-checkbox" onchange="toggleTTS()"><span class="slider"></span></label>
+                        <div id="tts-status-text" class="toggle-status-text">読上：ON</div>
+                    </div>
+                </div>
+
+                <div class="mic-btn-wrapper">
+                    <button id="mic-btn" class="mic-btn" onclick="toggleMic()">🎤</button>
+                    <div id="mic-status" class="mic-status-text">タップして話す</div>
+                </div>
+            </div>
             
             <div class="text-input-row">
                 <input type="text" id="chat-input" placeholder="テキスト入力..." onkeypress="if(event.key === 'Enter') askPokemonAI()">
