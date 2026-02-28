@@ -56,7 +56,6 @@ function updateToggleText() {
     ttsText.style.background = isTTSEnabled ? "#e8f5e9" : "#fff";
 }
 
-// 音声入力の「漢字バグ」を公式表記に全自動翻訳するフィルター
 function fixVoiceInput(text) {
     return text.replace(/人影/g, "ヒトカゲ")
                .replace(/不思議だね|ふしぎだね/g, "フシギダネ")
@@ -103,24 +102,61 @@ function findPokemon(userText) {
     return matches;
 }
 
-// ▼▼▼ 追加：全ポケモンから「技」の情報を抜き出す神機能 ▼▼▼
-function searchMoveInfo(moveName) {
+// ▼▼▼ 追加：全データから「すべての技名」を抽出する機能 ▼▼▼
+let ALL_MOVES_CACHE = null;
+function extractAllMoves() {
+    if (ALL_MOVES_CACHE) return ALL_MOVES_CACHE;
+    let moves = new Set();
+    const typesList = ["ノーマル","ほのお","みず","でんき","くさ","こおり","かくとう","どく","じめん","ひこう","エスパー","むし","いわ","ゴースト","ドラゴン","はがね","あく","？？？"];
+    for (const poke of POKE_DB) {
+        const lines = poke.info.split('\n').map(l => l.trim());
+        for (let i = 0; i < lines.length; i++) {
+            if (typesList.includes(lines[i]) && i > 0 && i + 4 < lines.length) {
+                let moveName = lines[i-1];
+                // 短すぎる文字や空白を含むものは除外
+                if(moveName.length >= 2 && !moveName.includes(" ") && !moveName.includes("レベル")) {
+                    moves.add(moveName);
+                }
+            }
+        }
+    }
+    // 文字数が長い技名から順番に探すようにソート（誤爆防止）
+    ALL_MOVES_CACHE = Array.from(moves).sort((a,b) => b.length - a.length);
+    return ALL_MOVES_CACHE;
+}
+
+// ▼▼▼ 追加：「文章の中」から技名を探し出し、データベースを横断検索する神機能 ▼▼▼
+function searchMoveInfo(userText) {
     if (typeof POKE_DB === 'undefined') return null;
+    
+    const allMoves = extractAllMoves();
+    let targetMove = null;
+    
+    // ユーザーの入力テキストの中に、技名が含まれているかチェック！
+    for (const m of allMoves) {
+        if (userText.includes(m)) {
+            targetMove = m;
+            break;
+        }
+    }
+
+    if (!targetMove) return null; // 技名が含まれていなければ終了
+
     let moveData = null;
     let learningPokemons = [];
     const typesList = ["ノーマル","ほのお","みず","でんき","くさ","こおり","かくとう","どく","じめん","ひこう","エスパー","むし","いわ","ゴースト","ドラゴン","はがね","あく","？？？"];
     
+    // 技名が見つかったら、図鑑151匹のデータを全スキャンして情報をかき集める！
     for (const poke of POKE_DB) {
         const lines = poke.info.split('\n').map(l => l.trim());
-        let idx = lines.indexOf(moveName); // 技名と完全に一致する行を探す
+        let idx = lines.indexOf(targetMove);
         
         if (idx !== -1 && idx + 5 < lines.length) {
             const type = lines[idx+1];
-            // その下の行がタイプ名なら「技データ」と確定
             if (typesList.includes(type)) {
-                if (!moveData) {
+                if (!moveData) { // 最初の1回だけ威力や効果を保存
                     moveData = {
-                        name: moveName,
+                        name: targetMove,
                         type: type,
                         power: lines[idx+2],
                         acc: lines[idx+3],
@@ -128,15 +164,15 @@ function searchMoveInfo(moveName) {
                         effect: lines[idx+5]
                     };
                 }
-                learningPokemons.push(poke.name);
+                learningPokemons.push(poke.name); // この技を覚えるポケモンをリストに追加
             }
         }
     }
     
-    // 見つかったら、AIへのカンペとして整形して返す
     if (moveData) {
-        const uniquePokemons = [...new Set(learningPokemons)]; // 重複を消す
-        return `【技データ】\n技名: ${moveData.name}\nタイプ: ${moveData.type}\n威力: ${moveData.power}\n命中: ${moveData.acc}\nPP: ${moveData.pp}\n効果: ${moveData.effect}\n\n【この技を覚える代表的なポケモン】\n${uniquePokemons.slice(0, 8).join("、")} など`;
+        // 重複を消して、代表的なポケモンをピックアップ
+        const uniquePokemons = [...new Set(learningPokemons)];
+        return `【技データ】\n技名: ${moveData.name}\nタイプ: ${moveData.type}\n威力: ${moveData.power}\n命中: ${moveData.acc}\nPP: ${moveData.pp}\n効果: ${moveData.effect}\n\n【この技を覚える代表的なポケモン】\n${uniquePokemons.slice(0, 10).join("、")} など`;
     }
     return null;
 }
@@ -341,42 +377,54 @@ async function askPokemonAI() {
     chatBox.innerHTML += `<div class="msg user"><div class="text">${rawText}</div></div>`;
     inputEl.value = '';
     
+    // 1. まずポケモンの名前が含まれているか探す
     const directMatches = findPokemon(rawText);
+    let moveInfo = null;
+
+    // 2. ポケモンの名前がなければ、「技の名前」が含まれているか探す
+    if (directMatches.length === 0) {
+        moveInfo = searchMoveInfo(rawText);
+    }
     
-    // ⚡ 【AI：OFF】 ⚡
-    if (!isAiMode && directMatches.length > 0) {
+    // ⚡ 【AI：OFFモード】 ⚡
+    if (!isAiMode) {
         seReceive.play().catch(e => {});
-        directMatches.forEach(p => {
-            chatBox.innerHTML += createBeautifulCard(p);
-        });
+        if (directMatches.length > 0) {
+            directMatches.forEach(p => { chatBox.innerHTML += createBeautifulCard(p); });
+        } else if (moveInfo) {
+            // 技の情報を引いた場合、画面に「簡易技カード」を表示する！
+            chatBox.innerHTML += `
+            <div class="data-card" style="background:#fff; border-left:5px solid #f1c40f; padding:15px; font-size:13px; line-height:1.6; color:#222;">
+                ${moveInfo.replace(/\n/g, '<br>')}
+            </div>`;
+        } else {
+            chatBox.innerHTML += `<div class="data-card" style="padding:15px; color:#e74c3c;">データが見つからなかったたま…</div>`;
+        }
         chatBox.scrollTop = chatBox.scrollHeight;
         return; 
     }
 
-    // 💬 【AI：ON】 💬
+    // 💬 【AI：ONモード】 💬
     const loadingId = "L-" + Date.now();
     chatBox.innerHTML += `<div id="${loadingId}" class="msg bot"><img src="tamachan.png" class="avatar"><div class="text">解析中だたま...🔍</div></div>`;
     chatBox.scrollTop = chatBox.scrollHeight;
 
     let cheatSheet = "";
     
-    // ★ ポケモンの名前でヒットした場合
+    // ★ カンペの作成（ポケモンが見つかったらポケモンのデータ、技が見つかったら技のデータ）
     if (directMatches.length > 0) {
         cheatSheet = directMatches.map(p => `【${p.name}】\n${formatInfoForAI(p.info)}`).join("\n\n");
         lastCheatSheet = cheatSheet;
-    } 
-    // ★ ポケモンの名前が見つからない場合、全データから「技名」として検索する！
-    else {
-        const moveInfo = searchMoveInfo(rawText);
-        if (moveInfo) {
-            cheatSheet = moveInfo; // AIに「技のデータ」をカンペとして渡す
-            lastCheatSheet = cheatSheet;
-        } else {
-            cheatSheet = lastCheatSheet; // それもなければ前の話題を引き継ぐ
-        }
+    } else if (moveInfo) {
+        cheatSheet = moveInfo; 
+        lastCheatSheet = cheatSheet;
+    } else {
+        cheatSheet = lastCheatSheet; 
     }
 
-    const fullPrompt = `${typeof SYSTEM_PROMPT !== 'undefined' ? SYSTEM_PROMPT : ''}\n\n=== カンペ ===\n${cheatSheet || "データが見つからないたま！"}\n\n=== 質問 ===\n${rawText}`;
+    // ★ 邪魔だった「絶対命令プロンプト」を完全に削除！RickunのSYSTEM_PROMPTにすべてを託す！
+    const basePrompt = typeof SYSTEM_PROMPT !== 'undefined' ? SYSTEM_PROMPT : "あなたはポケモンガチ勢のたまちゃんです。語尾は「だたま」です。";
+    const fullPrompt = `${basePrompt}\n\n=== カンペ ===\n${cheatSheet || "データが見つからないたま！"}\n\n=== 質問 ===\n${rawText}`;
 
     try {
         const res = await fetch(gasUrl, { method: "POST", body: JSON.stringify({ contents: [{ parts: [{ text: fullPrompt }] }] }) });
