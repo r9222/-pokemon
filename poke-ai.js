@@ -82,14 +82,14 @@ function fixVoiceInput(text) {
                .replace(/穴を掘る/g, "あなをほる")
                .replace(/眠る/g, "ねむる")
                .replace(/剣の舞/g, "つるぎのまい")
+               .replace(/毒々|毒毒/g, "どくどく")
                .replace(/突進/g, "とっしん")
                .replace(/超音波/g, "ちょうおんぱ")
                .replace(/気合パンチ|気合いパンチ/g, "きあいパンチ")
                .replace(/嫌な音/g, "いやなおと")
                .replace(/日本晴れ/g, "にほんばれ")
                .replace(/雨乞い/g, "あまごい")
-               .replace(/自己暗示/g, "じこあんじ")
-               .replace(/毒々|毒毒/g, "どくどく");
+               .replace(/自己暗示/g, "じこあんじ");
 }
 
 function findPokemon(userText) {
@@ -381,7 +381,10 @@ async function askPokemonAI() {
     rawText = fixVoiceInput(rawText);
 
     const chatBox = document.getElementById('chat-messages');
-    chatBox.innerHTML += `<div class="msg user"><div class="text">${rawText}</div></div>`;
+    
+    // ★ ユーザーの吹き出しにIDをつけて、あとでスクロールの基準にする
+    const userMsgId = "msg-" + Date.now();
+    chatBox.innerHTML += `<div id="${userMsgId}" class="msg user"><div class="text">${rawText}</div></div>`;
     inputEl.value = '';
     
     // 1. まずポケモンの名前が含まれているか探す
@@ -407,14 +410,35 @@ async function askPokemonAI() {
         } else {
             chatBox.innerHTML += `<div class="data-card" style="padding:15px; color:#e74c3c;">データが見つからなかったたま…</div>`;
         }
-        chatBox.scrollTop = chatBox.scrollHeight;
+        
+        // ★ 画面の一番下へのワープをやめて、自分の発言位置へ「なめらかに」スクロールさせる！
+        setTimeout(() => {
+            const userMsgEl = document.getElementById(userMsgId);
+            if (userMsgEl) {
+                chatBox.scrollTo({
+                    top: userMsgEl.offsetTop - 10,
+                    behavior: 'smooth'
+                });
+            }
+        }, 50);
+        
         return; 
     }
 
     // 💬 【AI：ONモード】 💬
     const loadingId = "L-" + Date.now();
     chatBox.innerHTML += `<div id="${loadingId}" class="msg bot"><img src="tamachan.png" class="avatar"><div class="text">解析中だたま...🔍</div></div>`;
-    chatBox.scrollTop = chatBox.scrollHeight;
+    
+    // ロード中も自分の発言が基準になるようにスクロール
+    setTimeout(() => {
+        const userMsgEl = document.getElementById(userMsgId);
+        if (userMsgEl) {
+            chatBox.scrollTo({
+                top: userMsgEl.offsetTop - 10,
+                behavior: 'smooth'
+            });
+        }
+    }, 50);
 
     let cheatSheet = "";
     
@@ -445,7 +469,19 @@ async function askPokemonAI() {
                 <img src="tamachan.png" class="avatar">
                 <div class="text">${linkify(reply)}</div>
             </div>`;
-        chatBox.scrollTop = chatBox.scrollHeight;
+            
+        // ★ 回答が返ってきた後も、自分の発言位置が見えるようにスッとスクロール
+        setTimeout(() => {
+            const userMsgEl = document.getElementById(userMsgId);
+            if (userMsgEl) {
+                chatBox.scrollTo({
+                    top: userMsgEl.offsetTop - 10,
+                    behavior: 'smooth'
+                });
+            } else {
+                chatBox.scrollTop = chatBox.scrollHeight;
+            }
+        }, 50);
         
         if (isTTSEnabled) {
             seReceive.play().catch(e => {});
@@ -455,4 +491,3 @@ async function askPokemonAI() {
         document.getElementById(loadingId).innerText = "通信エラーだたま！";
     }
 }
-
