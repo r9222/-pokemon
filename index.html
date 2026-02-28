@@ -6,12 +6,15 @@
     <title>ポケモン攻略たまちゃん</title>
     
     <script>
+        // iOSかどうかを判定
         const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+        // マニフェストファイルを動的に切り替え
         const manifestLink = document.createElement('link');
         manifestLink.rel = 'manifest';
         manifestLink.href = isIOS ? 'manifest-ios.json' : 'manifest.json';
         document.head.appendChild(manifestLink);
         
+        // iOS用のメタタグを追加
         if (!isIOS) {
             const meta = document.createElement('meta');
             meta.name = 'apple-mobile-web-app-capable';
@@ -21,14 +24,43 @@
     </script>
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="apple-touch-icon" href="icon.png">
+    
     <link href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap" rel="stylesheet">
 
     <style>
-        :root { --dex-red: #dd0b2d; --dex-dark: #222222; --dex-screen: #f8fcf8; --user-msg: #e3f2fd; --bot-msg: #ffffff;}
-        * { box-sizing: border-box; font-family: 'DotGothic16', sans-serif; }
-        body { margin: 0; padding: 0; background: #333; display: flex; justify-content: center; height: 100vh; overflow: hidden;}
-        .app-container { width: 100%; max-width: 500px; height: 100vh; height: 100dvh; background: var(--dex-screen); display: flex; flex-direction: column; position: relative;}
+        /* 共通設定 */
+        :root {
+            --dex-red: #dd0b2d;
+            --dex-dark: #222222;
+            --dex-screen: #f8fcf8; /* うっすら緑がかった白（ゲームボーイ風） */
+            --user-msg: #e3f2fd;
+            --bot-msg: #ffffff;
+        }
+        * {
+            box-sizing: border-box;
+            font-family: 'DotGothic16', sans-serif; /* 全体にドットフォント適用 */
+        }
+        body {
+            margin: 0;
+            padding: 0;
+            background: #333;
+            display: flex;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+        .app-container {
+            width: 100%;
+            max-width: 500px;
+            height: 100vh;
+            height: 100dvh; /* iOS対応 */
+            background: var(--dex-screen);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
         
+        /* ヘッダー（図鑑の上部イメージ） */
         .chat-header {
             background: var(--dex-red);
             color: white;
@@ -50,7 +82,7 @@
             font-weight: bold;
             font-family: inherit;
         }
-        
+
         /* ▼▼ 追加：攻略サイトボタンのデザイン ▼▼ */
         .guide-btn {
             background: #fff; 
@@ -68,6 +100,7 @@
             color: #fff;
         }
 
+        /* チャットエリア */
         .chat-messages {
             flex: 1;
             padding: 15px;
@@ -80,11 +113,20 @@
         .msg { display: flex; max-width: 85%; }
         .msg.user { align-self: flex-end; flex-direction: row-reverse; }
         .msg.bot { align-self: flex-start; }
-        .msg .avatar { width: 40px; height: 40px; border-radius: 50%; margin: 0 10px; border: 2px solid var(--dex-red); background: white; object-fit: cover; }
-        .msg .text { padding: 10px 15px; border-radius: 15px; font-size: 15px; line-height: 1.5; word-break: break-word; box-shadow: 1px 1px 3px rgba(0,0,0,0.1); }
+        .msg .avatar {
+            width: 40px; height: 40px; border-radius: 50%;
+            margin: 0 10px; border: 2px solid var(--dex-red);
+            background: white; object-fit: cover;
+        }
+        .msg .text {
+            padding: 10px 15px; border-radius: 15px; font-size: 15px;
+            line-height: 1.5; word-break: break-word;
+            box-shadow: 1px 1px 3px rgba(0,0,0,0.1);
+        }
         .msg.user .text { background: var(--user-msg); border-top-right-radius: 2px; }
         .msg.bot .text { background: var(--bot-msg); border-top-left-radius: 2px; border: 1px solid #ddd; }
         
+        /* 入力エリア */
         .input-area {
             background: white;
             padding: 10px 15px;
@@ -92,12 +134,15 @@
             padding-bottom: env(safe-area-inset-bottom, 15px);
         }
         
+        /* 1段目：トグルとマイクボタン */
         .controls-row {
             display: flex;
             justify-content: space-between;
             align-items: center;
             margin-bottom: 10px;
         }
+
+        /* トグルスイッチ（AI/読上）縦並び */
         .toggle-group {
             display: flex;
             flex-direction: column;
@@ -108,14 +153,27 @@
             align-items: center;
             gap: 8px;
         }
-        .switch { position: relative; display: inline-block; width: 40px; height: 22px; }
+        .switch {
+            position: relative; display: inline-block;
+            width: 40px; height: 22px;
+        }
         .switch input { opacity: 0; width: 0; height: 0; }
-        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 22px; }
-        .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+        .slider {
+            position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #ccc; transition: .4s; border-radius: 22px;
+        }
+        .slider:before {
+            position: absolute; content: ""; height: 16px; width: 16px; left: 3px; bottom: 3px;
+            background-color: white; transition: .4s; border-radius: 50%;
+        }
         input:checked + .slider { background-color: #4caf50; }
         input:checked + .slider:before { transform: translateX(18px); }
-        .toggle-status-text { font-size: 11px; font-weight: bold; background: #eee; padding: 2px 6px; border-radius: 4px; }
+        .toggle-status-text {
+            font-size: 11px; font-weight: bold; background: #eee;
+            padding: 2px 6px; border-radius: 4px;
+        }
         
+        /* マイクボタン（中央・大きめ） */
         .mic-btn-wrapper {
             display: flex;
             flex-direction: column;
@@ -137,13 +195,31 @@
             color: #f44336;
             animation: pulse 1.5s infinite;
         }
-        @keyframes pulse { 0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(244,67,54,0.4); } 70% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(244,67,54,0); } 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(244,67,54,0); } }
-        .mic-status-text { font-size: 10px; color: #888; margin-top: 4px; }
+        @keyframes pulse {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(244,67,54,0.4); }
+            70% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(244,67,54,0); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(244,67,54,0); }
+        }
+        .mic-status-text {
+            font-size: 10px; color: #888; margin-top: 4px;
+        }
 
-        .text-input-row { display: flex; gap: 8px; }
-        #chat-input { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 20px; font-size: 14px; outline: none; }
-        .send-btn { background: var(--dex-red); color: white; border: none; padding: 0 15px; border-radius: 20px; font-weight: bold; cursor: pointer; }
-        .search-link { color: #1976d2; text-decoration: none; font-weight: bold; }
+        /* 2段目：テキスト入力 */
+        .text-input-row {
+            display: flex; gap: 8px;
+        }
+        #chat-input {
+            flex: 1; padding: 10px; border: 1px solid #ccc;
+            border-radius: 20px; font-size: 14px; outline: none;
+        }
+        .send-btn {
+            background: var(--dex-red); color: white; border: none;
+            padding: 0 15px; border-radius: 20px; font-weight: bold; cursor: pointer;
+        }
+
+        .search-link {
+            color: #1976d2; text-decoration: none; font-weight: bold;
+        }
     </style>
 </head>
 <body>
