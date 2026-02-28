@@ -82,6 +82,13 @@ function fixVoiceInput(text) {
                .replace(/穴を掘る/g, "あなをほる")
                .replace(/眠る/g, "ねむる")
                .replace(/剣の舞/g, "つるぎのまい")
+               .replace(/突進/g, "とっしん")
+               .replace(/超音波/g, "ちょうおんぱ")
+               .replace(/気合パンチ|気合いパンチ/g, "きあいパンチ")
+               .replace(/嫌な音/g, "いやなおと")
+               .replace(/日本晴れ/g, "にほんばれ")
+               .replace(/雨乞い/g, "あまごい")
+               .replace(/自己暗示/g, "じこあんじ")
                .replace(/毒々|毒毒/g, "どくどく");
 }
 
@@ -448,3 +455,4 @@ async function askPokemonAI() {
         document.getElementById(loadingId).innerText = "通信エラーだたま！";
     }
 }
+
