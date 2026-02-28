@@ -6,7 +6,6 @@ let lastCheatSheet = "";
 let recognition;
 let isRecording = false;
 
-// 設定の復元
 let isAiMode = localStorage.getItem('tama_ai_mode') !== 'false'; 
 let isTTSEnabled = localStorage.getItem('tama_tts_enabled') !== 'false';
 let currentAudio = null;
@@ -42,12 +41,28 @@ function updateToggleText() {
     ttsText.style.background = isTTSEnabled ? "#e8f5e9" : "#fff";
 }
 
-// 検索機能
+// ▼▼▼ 音声入力の漢字・ひらがなバグを修正するフィルター ▼▼▼
+function normalizePokemonName(text) {
+    let t = text.replace(/人影/g, "ヒトカゲ")
+                .replace(/不思議だね/g, "フシギダネ")
+                .replace(/不思議そう/g, "フシギソウ")
+                .replace(/不思議花/g, "フシギバナ")
+                .replace(/玉魂/g, "タマタマ")
+                .replace(/理沙/g, "リザード"); // リザードンと誤爆しないよう注意
+    
+    // ひらがなをすべてカタカナに変換する魔法のコード
+    t = t.replace(/[\u3041-\u3096]/g, function(match) {
+        return String.fromCharCode(match.charCodeAt(0) + 0x60);
+    });
+    return t;
+}
+
 function findPokemon(userText) {
     if (typeof POKE_DB === 'undefined') return [];
     const sortedDB = [...POKE_DB].sort((a, b) => b.name.length - a.name.length);
     let matches = [];
-    let searchTarget = userText;
+    let searchTarget = normalizePokemonName(userText); // ここでフィルターを通す！
+
     for (const p of sortedDB) {
         if (searchTarget.includes(p.name)) {
             matches.push(p);
@@ -57,7 +72,7 @@ function findPokemon(userText) {
     return matches;
 }
 
-// ▼▼▼ 技データを束ねて「カード化」する神ジェネレーター ▼▼▼
+// ▼▼▼ 技ズレを完全に防ぐ「アンカー(碇)方式」ジェネレーター ▼▼▼
 function createBeautifulCard(poke) {
     const pokeNum = parseInt(poke.no);
     const imgUrl = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${pokeNum}.png`;
@@ -70,41 +85,24 @@ function createBeautifulCard(poke) {
     
     let currentSection = 'basic';
     let moveBuffer = [];
-    let movesCols = 0;
-    let isHeader = false;
+    const typesList = ["ノーマル","ほのお","みず","でんき","くさ","こおり","かくとう","どく","じめん","ひこう","エスパー","むし","いわ","ゴースト","ドラゴン","はがね","あく"];
     
     for (let i = 0; i < lines.length; i++) {
         let l = lines[i];
         
-        // ゴミテキストをスキップ
         if (l === poke.name || l === "No" || l === poke.no || l === "ポケモン図鑑絵" || l === "戻る" || l === "1" || l.includes("All rights reserved") || l.includes("Present by")) continue;
-        
         if (l === "説明") { currentSection = 'desc'; continue; }
         if (l === "種族値") { currentSection = 'stats'; continue; }
         
-        // ▼ 技セクションの判定（データ数によって7個か6個か切り替える）
-        if (l === "レベルアップで覚えるわざ" || l === "覚えるわざマシン・ひでんマシン" || l.includes("おぼえられるわざマシン・ひでんマシンはありません")) {
-            if (l.includes("ありません")) {
-                movesHtml += `<div style="font-size:12px; color:#888; padding:8px; text-align:center;">${l}</div>`;
-                continue;
-            }
+        // 技セクションの開始
+        if (l.includes("覚えるわざ") || l.includes("ひでんマシン") || l.includes("教えてもらえる")) {
             currentSection = 'moves';
-            movesCols = 7;
-            isHeader = true;
             moveBuffer = [];
-            movesHtml += `<div style="background:#dd0b2d; color:#fff; padding:6px 10px; margin:20px 0 10px; font-weight:bold; border-radius:4px; font-size:14px; box-shadow: 1px 1px 2px rgba(0,0,0,0.3); text-align:center;">${l}</div>`;
-            continue;
-        }
-        if (l === "タマゴわざ" || l === "教えてもらえるわざ") {
-            currentSection = 'moves';
-            movesCols = 6;
-            isHeader = true;
-            moveBuffer = [];
-            movesHtml += `<div style="background:#222; color:#fff; padding:6px 10px; margin:20px 0 10px; font-weight:bold; border-radius:4px; font-size:14px; box-shadow: 1px 1px 2px rgba(0,0,0,0.3); text-align:center;">${l}</div>`;
+            movesHtml += `<div style="background:#222; color:#fff; padding:6px 10px; margin:20px 0 10px; font-weight:bold; border-radius:4px; font-size:14px;">${l}</div>`;
             continue;
         }
 
-        // ▼ 種族値や基本データのバッジ化
+        // 基本データ・種族値のバッジ化
         if (currentSection === 'stats' || currentSection === 'basic') {
             if (i + 1 < lines.length && lines[i].length <= 15 && lines[i+1].length <= 30 && !lines[i+1].includes("わざ") && lines[i+1] !== "説明" && lines[i+1] !== "種族値") {
                 statsHtml += `
@@ -113,62 +111,63 @@ function createBeautifulCard(poke) {
                     <div style="font-size:13px; font-weight:bold; color:#222;">${lines[i+1]}</div>
                 </div>`;
                 i++;
-            } else {
-                 statsHtml += `<div style="grid-column: 1 / -1; font-size:13px; padding:4px; border-bottom:1px dashed #ccc;">${l}</div>`;
             }
         } 
-        // ▼ 説明文の装飾
+        // 説明文
         else if (currentSection === 'desc') {
             if (l !== "ファイアレッド" && l !== "リーフグリーン" && l !== "説明") {
                  descHtml += `<div style="font-size:13px; margin-bottom:8px; padding:8px 12px; background:#e8f5e9; border-left:4px solid #1976d2; border-radius:4px; color:#0d47a1; line-height:1.5;">${l.replace(/　/g, '')}</div>`;
             }
         } 
-        // ▼ 技リストを「カード」に束ねる超技術
+        // ▼ ズレない技カード生成
         else if (currentSection === 'moves') {
+            // 見出し行はスキップ
+            if (["レベル", "わざ名", "タイプ", "威力", "命中", "PP", "効果", "マシンNo"].includes(l)) continue;
+            
             moveBuffer.push(l);
-            // 指定した数（7個 or 6個）データが溜まったら、1つのカードにする！
-            if (moveBuffer.length === movesCols) {
-                if (isHeader) {
-                    isHeader = false; // ヘッダー行（レベル, わざ名...）はスキップ
-                    moveBuffer = [];
-                } else {
-                    if (movesCols === 7) {
-                        let cond = moveBuffer[0] === "-" ? "基本" : moveBuffer[0];
-                        movesHtml += `
-                        <div style="background:#fff; border:1px solid #ddd; border-left:5px solid #3498db; border-radius:6px; padding:8px; margin-bottom:8px; box-shadow:1px 1px 3px rgba(0,0,0,0.1);">
-                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                                <span style="font-weight:bold; font-size:15px; color:#222;">${moveBuffer[1]}</span>
-                                <span style="font-size:11px; background:#eee; color:#555; padding:2px 8px; border-radius:10px; font-weight:bold;">${cond}</span>
-                            </div>
-                            <div style="display:flex; gap:6px; font-size:11px; color:#666; margin-bottom:6px; align-items:center;">
-                                <span style="background:#f1c40f; color:#222; padding:2px 6px; border-radius:4px; font-weight:bold;">${moveBuffer[2]}</span>
-                                <span>威力: <b style="color:#e74c3c;">${moveBuffer[3]}</b></span>
-                                <span>命中: <b>${moveBuffer[4]}</b></span>
-                                <span>PP: <b>${moveBuffer[5]}</b></span>
-                            </div>
-                            <div style="font-size:12px; color:#444; line-height:1.4;">${moveBuffer[6]}</div>
-                        </div>`;
-                    } else if (movesCols === 6) {
-                        movesHtml += `
-                        <div style="background:#fff; border:1px solid #ddd; border-left:5px solid #9b59b6; border-radius:6px; padding:8px; margin-bottom:8px; box-shadow:1px 1px 3px rgba(0,0,0,0.1);">
-                            <div style="font-weight:bold; font-size:15px; margin-bottom:6px; color:#222;">${moveBuffer[0]}</div>
-                            <div style="display:flex; gap:6px; font-size:11px; color:#666; margin-bottom:6px; align-items:center;">
-                                <span style="background:#f1c40f; color:#222; padding:2px 6px; border-radius:4px; font-weight:bold;">${moveBuffer[1]}</span>
-                                <span>威力: <b style="color:#e74c3c;">${moveBuffer[2]}</b></span>
-                                <span>命中: <b>${moveBuffer[3]}</b></span>
-                                <span>PP: <b>${moveBuffer[4]}</b></span>
-                            </div>
-                            <div style="font-size:12px; color:#444; line-height:1.4;">${moveBuffer[5]}</div>
-                        </div>`;
-                    }
-                    moveBuffer = []; // 次の技のためにリセット
-                }
+            
+            // バッファの中に「タイプ（ほのお等）」が含まれているか探す
+            let typeIdx = moveBuffer.findIndex(x => typesList.includes(x));
+            
+            // タイプが見つかり、かつその後ろに「威力・命中・PP・効果」の4つが揃ったらカード化！
+            if (typeIdx >= 1 && moveBuffer.length >= typeIdx + 5) {
+                let name = moveBuffer[typeIdx - 1];
+                let level = typeIdx >= 2 ? moveBuffer.slice(0, typeIdx - 1).join(" ") : "-";
+                if(level.length > 15) level = level.split(" ").pop(); // ゴミ回避
+                
+                let type = moveBuffer[typeIdx];
+                let power = moveBuffer[typeIdx + 1];
+                let acc = moveBuffer[typeIdx + 2];
+                let pp = moveBuffer[typeIdx + 3];
+                let eff = moveBuffer[typeIdx + 4];
+                
+                let tColor = "#555";
+                if(type==="ほのお") tColor="#e74c3c";
+                else if(type==="みず") tColor="#3498db";
+                else if(type==="くさ") tColor="#2ecc71";
+                else if(type==="でんき") tColor="#f1c40f";
+                
+                movesHtml += `
+                <div style="background:#fff; border:1px solid #ddd; border-left:4px solid ${tColor}; border-radius:4px; padding:8px; margin-bottom:6px; box-shadow:1px 1px 2px rgba(0,0,0,0.05);">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                        <span><span style="color:#888; font-size:11px; margin-right:6px;">${level}</span><strong style="font-size:14px; color:#222;">${name}</strong></span>
+                        <span style="background:${tColor}; color:#fff; font-size:10px; padding:2px 6px; border-radius:10px;">${type}</span>
+                    </div>
+                    <div style="font-size:11px; color:#e74c3c; margin-bottom:4px;">威力:${power} / 命中:${acc} / PP:${pp}</div>
+                    <div style="font-size:11px; color:#555;">${eff}</div>
+                </div>`;
+                
+                moveBuffer = []; // 次の技のためにリセット
+            }
+            // エラー文が混ざっていた場合の処理
+            else if (moveBuffer.length > 0 && moveBuffer[moveBuffer.length-1].includes("登録されていない技")) {
+                movesHtml += `<div style="color:#e74c3c; font-size:11px; margin-bottom:6px;">※ ${moveBuffer[moveBuffer.length-1]}</div>`;
+                moveBuffer = [];
             }
         }
     }
     statsHtml += '</div>';
     
-    // 全体を合体させて出力
     return `
     <div class="data-card" style="display:flex; flex-direction:column; box-shadow: 2px 2px 5px rgba(0,0,0,0.5);">
         <div class="data-card-header" style="display:flex; justify-content:space-between; background: #222; color: #fff; padding: 10px;">
@@ -230,16 +229,16 @@ function stopMic() { isRecording = false; document.getElementById('mic-btn').cla
 // ▼▼▼ メインロジック ▼▼▼
 async function askPokemonAI() {
     const inputEl = document.getElementById('chat-input');
-    const userText = inputEl.value.trim();
-    if (!userText) return;
+    const rawText = inputEl.value.trim();
+    if (!rawText) return;
 
     const chatBox = document.getElementById('chat-messages');
-    chatBox.innerHTML += `<div class="msg user"><div class="text">${userText}</div></div>`;
+    chatBox.innerHTML += `<div class="msg user"><div class="text">${rawText}</div></div>`;
     inputEl.value = '';
     
-    const directMatches = findPokemon(userText);
+    const directMatches = findPokemon(rawText);
     
-    // ⚡ 【AI：OFF】アバターを完全に消して、美しいカードを表示！ ⚡
+    // ⚡ 【AI：OFF】 ⚡
     if (!isAiMode && directMatches.length > 0) {
         seReceive.play().catch(e => {});
         directMatches.forEach(p => {
@@ -249,7 +248,7 @@ async function askPokemonAI() {
         return; 
     }
 
-    // 💬 【AI：ON】いつものたまちゃん 💬
+    // 💬 【AI：ON】幻覚防止プロンプト追加 💬
     const loadingId = "L-" + Date.now();
     chatBox.innerHTML += `<div id="${loadingId}" class="msg bot"><img src="tamachan.png" class="avatar"><div class="text">解析中だたま...🔍</div></div>`;
     chatBox.scrollTop = chatBox.scrollHeight;
@@ -257,7 +256,17 @@ async function askPokemonAI() {
     let cheatSheet = directMatches.length > 0 ? directMatches.map(p => `【${p.name}】\n${p.info}`).join("\n\n") : lastCheatSheet;
     if (cheatSheet) lastCheatSheet = cheatSheet;
 
-    const fullPrompt = `${typeof SYSTEM_PROMPT !== 'undefined' ? SYSTEM_PROMPT : ''}\n\n=== カンペ ===\n${cheatSheet || "なし"}\n\n=== 質問 ===\n${userText}`;
+    // AIに「嘘をつくな」と強く命令する
+    const aiSystemPrompt = `
+あなたはポケモンのガチ勢アシスタント「たまちゃん」だたま。
+【厳守ルール】
+1. 以下の=== カンペ ===にあるデータのみを「絶対の事実」として扱いなさい。
+2. カンペにない技（れいとうビームなど）は、絶対に「覚える」と言ってはいけません。「その技は覚えないたま！」と正しなさい。推測で適当な情報をでっち上げるのは厳禁です。
+3. 語尾は「〜だたま！」
+4. 第3世代(FRLG)の仕様です。
+`;
+
+    const fullPrompt = `${aiSystemPrompt}\n\n=== カンペ ===\n${cheatSheet || "データが見つからないたま！"}\n\n=== 質問 ===\n${rawText}`;
 
     try {
         const res = await fetch(gasUrl, { method: "POST", body: JSON.stringify({ contents: [{ parts: [{ text: fullPrompt }] }] }) });
