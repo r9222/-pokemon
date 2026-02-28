@@ -263,13 +263,13 @@ async function askPokemonAI() {
     let cheatSheet = directMatches.length > 0 ? directMatches.map(p => `【${p.name}】\n${p.info}`).join("\n\n") : lastCheatSheet;
     if (cheatSheet) lastCheatSheet = cheatSheet;
 
-    // ★AIに「嘘をつくな」と超強力に命令
     const aiSystemPrompt = `
 あなたはポケモンのガチ勢アシスタント「たまちゃん」だたま。
 【絶対厳守のルール】
 1. 以下の === カンペ === のデータだけを「唯一の事実」として回答しなさい。あなたの事前の知識（第4世代以降など）は一切使ってはいけません。
-2. ユーザーから「○○の技は覚える？」と聞かれた時、カンペの中にその技名が存在しない場合は、絶対に「覚える」と言ってはいけません。「その技は覚えないたま！」とキッパリ否定しなさい。
-3. 語尾は必ず「〜だたま！」にすること。
+2. 音声入力の仕様上、ユーザーの質問には技名の表記ゆれ（例：「冷凍ビーム」や「十万ボルト」など漢字・ひらがな・カタカナ・数字の混在）が含まれます。あなたは文脈から「FRLGでの正式な技名」を柔軟に推測し、カンペの中にその技が存在するか賢く照らし合わせて判定しなさい。
+3. 柔軟に照らし合わせた結果、カンペに本当に載っていない技を聞かれた場合のみ「その技は覚えないたま！」とキッパリ否定しなさい。
+4. 語尾は必ず「〜だたま！」にすること。
 `;
 
     const fullPrompt = `${aiSystemPrompt}\n\n=== カンペ ===\n${cheatSheet || "データが見つからないたま！"}\n\n=== 質問 ===\n${rawText}`;
@@ -296,3 +296,4 @@ async function askPokemonAI() {
         document.getElementById(loadingId).innerText = "通信エラーだたま！";
     }
 }
+
