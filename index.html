@@ -31,22 +31,22 @@
         
         /* 上部ベゼル */
         .top-bezel { padding: 15px 20px 10px; display: flex; gap: 10px; border-bottom: 2px solid #880015; background: linear-gradient(180deg, #ff3b5c, var(--dex-red)); padding-top: calc(15px + env(safe-area-inset-top)); }
-        .main-lens { width: 45px; height: 45px; border-radius: 50%; background: radial-gradient(circle at 30% 30%, #5ce6e6, #0e85a5 60%, #002233); border: 3px solid #ddd; }
-        .header-title { color: white; margin-left: auto; font-size: 18px; text-shadow: 2px 2px 0 #333; align-self: center; }
+        .main-lens { width: 45px; height: 45px; border-radius: 50%; background: radial-gradient(circle at 30% 30%, #5ce6e6, #0e85a5 60%, #002233); border: 3px solid #ddd; flex-shrink: 0;}
+        .header-title { color: white; font-size: 18px; text-shadow: 2px 2px 0 #333; align-self: center; margin-left: 5px;}
+        
+        /* 🔄更新ボタン */
+        .update-btn { margin-left: auto; align-self: center; background: #222; color: #fff; border: 2px solid #ddd; border-radius: 5px; padding: 6px 10px; font-family: 'DotGothic16', sans-serif; font-size: 13px; cursor: pointer; box-shadow: 2px 2px 0 #333; transition: 0.1s; display: flex; align-items: center; gap: 4px; }
+        .update-btn:active { transform: translate(2px, 2px); box-shadow: 0 0 0; }
 
         /* スクリーン */
         .screen-container { background: var(--dex-dark); margin: 15px; padding: 15px; border-radius: 10px 10px 40px 10px; display: flex; flex-direction: column; flex: 1; min-height: 0; box-shadow: inset 0 0 10px black; }
         #chat-messages { flex: 1; overflow-y: auto; background-color: var(--dex-screen); background-image: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%); background-size: 100% 4px; border: 3px solid #555; border-radius: 5px; padding: 12px; }
         
-        /* ▼▼ AIモードOFF時の横幅100%カード（アバターなし） ▼▼ */
+        /* データカード */
         .data-card { width: 100%; background: #fff; border: 2px solid #222; border-radius: 5px; margin-bottom: 15px; box-shadow: 2px 2px 0 #222; overflow: hidden; animation: slideIn 0.2s ease; }
         .data-card-header { background: #222; color: #fff; padding: 8px 10px; font-size: 14px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; }
-        .poke-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-        .poke-table th, .poke-table td { border-bottom: 1px solid #ddd; padding: 8px; text-align: left; }
-        .poke-table th { background: #f0f0f0; width: 35%; color: #333; border-right: 1px solid #ddd; font-weight: bold; }
-        .poke-table tr:last-child th, .poke-table tr:last-child td { border-bottom: none; }
 
-        /* チャットの吹き出し（AIモードON用） */
+        /* チャット吹き出し */
         .msg { display: flex; margin-bottom: 15px; animation: slideIn 0.2s ease; align-items: flex-start; }
         .msg.user { justify-content: flex-end; }
         .avatar { width: 40px; height: 40px; object-fit: contain; flex-shrink: 0; margin-right: 8px; filter: drop-shadow(1px 1px 0px rgba(0,0,0,0.2)); }
@@ -54,7 +54,6 @@
         .msg.bot .text { border-radius: 5px 15px 15px 15px; }
         .msg.user .text { background: #f1c40f; border-radius: 15px 5px 15px 15px; margin-right: 0; }
         
-        /* リンク装飾 */
         .search-link { display: inline-block; background: #222; color: #fff; padding: 6px 10px; border-radius: 5px; text-decoration: none; margin-top: 8px; font-size: 12px; }
 
         /* コントロールパネル */
@@ -67,18 +66,15 @@
         .pokeball-center { width: 26px; height: 26px; background: #fff; border: 3px solid #222; border-radius: 50%; }
         .pokeball-btn.active .pokeball-center { background: #ff4757; box-shadow: 0 0 15px #ff4757; animation: blink 1s infinite; }
         
-        /* ▼▼ スライダートグルスイッチとテキスト ▼▼ */
+        /* スライダートグルスイッチ */
         .toggle-group { display: flex; flex-direction: column; align-items: center; gap: 8px; width: 100px; margin-top: 10px; }
         .switch { position: relative; display: inline-block; width: 56px; height: 30px; }
         .switch input { opacity: 0; width: 0; height: 0; }
         .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #888; transition: .3s; border-radius: 30px; border: 2px solid #222; box-shadow: inset 1px 1px 3px rgba(0,0,0,0.3); }
         .slider:before { position: absolute; content: ""; height: 22px; width: 22px; left: 2px; bottom: 2px; background-color: white; transition: .3s; border-radius: 50%; border: 2px solid #222; z-index: 2; }
-        
-        /* チェックされた時の色 */
-        input:checked + .slider { background-color: #2ed573; } /* 緑色（ON） */
+        input:checked + .slider { background-color: #2ed573; }
         input:checked + .slider:before { transform: translateX(26px); }
 
-        /* ON/OFFのテキスト表示ラベル */
         .toggle-status-text { font-size: 11px; font-weight: bold; color: #222; background: #fff; padding: 4px 8px; border-radius: 12px; border: 2px solid #aaa; text-align: center; width: 100%; box-shadow: 1px 1px 0 #aaa; }
 
         .mic-status-text { font-size: 12px; color: #555; margin: 15px 0 8px; font-weight: bold; }
@@ -97,6 +93,7 @@
         <div class="top-bezel">
             <div class="main-lens"></div>
             <div class="header-title">ﾀﾏﾁｬﾝ_Navi</div>
+            <button class="update-btn" onclick="forceUpdateApp()">🔄 更新</button>
         </div>
         
         <div class="screen-container">
@@ -107,12 +104,8 @@
         
         <div class="control-panel">
             <div class="main-controls">
-                
                 <div class="toggle-group">
-                    <label class="switch">
-                        <input type="checkbox" id="ai-checkbox" onchange="toggleMode()">
-                        <span class="slider"></span>
-                    </label>
+                    <label class="switch"><input type="checkbox" id="ai-checkbox" onchange="toggleMode()"><span class="slider"></span></label>
                     <div id="ai-status-text" class="toggle-status-text">AI：ON</div>
                 </div>
                 
@@ -121,13 +114,9 @@
                 </div>
 
                 <div class="toggle-group">
-                    <label class="switch">
-                        <input type="checkbox" id="tts-checkbox" onchange="toggleTTS()">
-                        <span class="slider"></span>
-                    </label>
+                    <label class="switch"><input type="checkbox" id="tts-checkbox" onchange="toggleTTS()"><span class="slider"></span></label>
                     <div id="tts-status-text" class="toggle-status-text">読上：ON</div>
                 </div>
-
             </div>
 
             <div id="mic-status" class="mic-status-text">タップして話す</div>
@@ -142,5 +131,22 @@
     <script src="pokemon-db.js"></script>
     <script src="poke-tamachan-data.js"></script>
     <script src="poke-ai.js"></script>
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js').then(reg => {
+                reg.addEventListener('updatefound', () => {
+                    const newWorker = reg.installing;
+                    newWorker.addEventListener('statechange', () => {
+                        // 新しいService Workerがインストールされ、かつ既に古いものが動いている場合
+                        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                            console.log("アップデート完了！自動リロードしますだたま！");
+                            window.location.reload();
+                        }
+                    });
+                });
+            });
+        }
+    </script>
 </body>
 </html>
