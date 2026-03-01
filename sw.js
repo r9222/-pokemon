@@ -1,6 +1,6 @@
 // sw.js
 // ⚠️ここを変えると全ユーザーのスマホで「アップデートしろ！」という強制命令が出ます
-const CACHE_NAME = 'tama-navi-v3.0'; 
+const CACHE_NAME = 'tama-navi-v3.1'; 
 
 const ASSETS = [
     './',
@@ -48,3 +48,4 @@ self.addEventListener('fetch', (e) => {
             .catch(() => caches.match(e.request)) 
     );
 });
+
