@@ -486,7 +486,7 @@ async function askPokemonAI() {
         cheatSheet = moveInfo;
         lastCheatSheet = cheatSheet;
     } else {
-        cheatSheet = lastCheatSheet;
+        cheatSheet = "【システム通知】該当するデータがデータベース(DB)に見つかりませんでした。ユーザーが尋ねている対象はデータベース外のアイテムやマイナーな用語である可能性が高いです。無理に知識で答えず、必ずプロンプトの【Step 3】に従って検索トリガー「[UNKNOWN] 検索キーワード」を出力してください。";
     }
 
     const basePrompt = typeof SYSTEM_PROMPT !== 'undefined' ? SYSTEM_PROMPT : "あなたはポケモンガチ勢のたまちゃんです。語尾は「だたま」です。";
