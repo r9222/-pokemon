@@ -219,35 +219,47 @@ function formatInfoForAI(infoText) {
     return cleanText;
 }
 
+// ★ 大幅アップデート：折りたたみ（アコーディオン）UIに変更！ ★
 function createBeautifulCard(poke) {
     const pokeNum = parseInt(poke.no);
     const imgUrl = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${pokeNum}.png`;
 
     const lines = poke.info.split('\n').map(l => l.trim()).filter(l => l !== "");
-    let statsHtml = '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px; margin-top: 10px;">';
+    
+    let basicStatsHtml = '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px;">';
     let descHtml = '';
-    let movesHtml = '';
+    
+    // 技のカテゴリーごとに格納するバッファ
+    let movesData = {
+        "レベルアップで覚えるわざ": "",
+        "覚えるわざマシン・ひでんマシン": "",
+        "タマゴわざ": "",
+        "教えてもらえるわざ": ""
+    };
     
     let currentSection = 'basic';
+    let currentMoveCategory = "";
     let moveBuffer = [];
     const typesList = ["ノーマル","ほのお","みず","でんき","くさ","こおり","かくとう","どく","じめん","ひこう","エスパー","むし","いわ","ゴースト","ドラゴン","はがね","あく","？？？"];
     
     for (let i = 0; i < lines.length; i++) {
         let l = lines[i];
         if (l === poke.name || l === "No" || l === poke.no || l === "ポケモン図鑑絵" || l === "戻る" || l === "1" || l.includes("All rights reserved") || l.includes("Present by")) continue;
-        if (l === "説明") { currentSection = 'desc'; continue; }
-        if (l === "種族値") { currentSection = 'stats'; continue; }
         
-        if (l.includes("覚えるわざ") || l.includes("ひでんマシン") || l.includes("教えてもらえる")) {
+        if (l === "説明") { currentSection = 'desc'; continue; }
+        if (l === "種族値") { currentSection = 'basic'; continue; } // 種族値は基本情報にまとめる
+        
+        // 技セクションの切り替わり
+        if (["レベルアップで覚えるわざ", "覚えるわざマシン・ひでんマシン", "タマゴわざ", "教えてもらえるわざ"].includes(l)) {
             currentSection = 'moves';
+            currentMoveCategory = l;
             moveBuffer = [];
-            movesHtml += `<div style="background:#222; color:#fff; padding:6px 10px; margin:20px 0 10px; font-weight:bold; border-radius:4px; font-size:14px;">${l}</div>`;
             continue;
         }
 
-        if (currentSection === 'stats' || currentSection === 'basic') {
+        if (currentSection === 'basic' || currentSection === 'stats') {
             if (i + 1 < lines.length && lines[i].length <= 15 && lines[i+1].length <= 30 && !lines[i+1].includes("わざ") && lines[i+1] !== "説明" && lines[i+1] !== "種族値") {
-                statsHtml += `
+                basicStatsHtml += `
                 <div style="background:#fff; border: 1px solid #ddd; border-left:4px solid #e74c3c; padding:6px; border-radius:4px; box-shadow:1px 1px 2px rgba(0,0,0,0.05);">
                     <div style="font-size:10px; color:#888; margin-bottom:2px;">${l}</div>
                     <div style="font-size:13px; font-weight:bold; color:#222;">${lines[i+1]}</div>
@@ -265,7 +277,7 @@ function createBeautifulCard(poke) {
             
             if (l.includes("登録されていない技")) {
                 let badMove = moveBuffer.length > 0 ? moveBuffer[moveBuffer.length - 1] : "不明な技";
-                movesHtml += `<div style="color:#c0392b; font-size:11px; margin-bottom:6px; background:#fadbd8; padding:4px; border-radius:4px;">※ [${badMove}] はデータベース欠損だたま！</div>`;
+                movesData[currentMoveCategory] += `<div style="color:#c0392b; font-size:11px; margin-bottom:6px; background:#fadbd8; padding:4px; border-radius:4px;">※ [${badMove}] はデータベース欠損だたま！</div>`;
                 moveBuffer = [];
                 continue;
             }
@@ -292,7 +304,7 @@ function createBeautifulCard(poke) {
                 else if(type==="エスパー" || type==="どく") tColor="#9b59b6";
                 else if(type==="じめん" || type==="いわ" || type==="かくとう") tColor="#e67e22";
                 
-                movesHtml += `
+                movesData[currentMoveCategory] += `
                 <div style="background:#fff; border:1px solid #ddd; border-left:4px solid ${tColor}; border-radius:4px; padding:8px; margin-bottom:6px; box-shadow:1px 1px 2px rgba(0,0,0,0.05);">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
                         <span><span style="color:#888; font-size:11px; margin-right:6px;">${level}</span><strong style="font-size:14px; color:#222;">${name}</strong></span>
@@ -305,26 +317,41 @@ function createBeautifulCard(poke) {
             }
         }
     }
-    statsHtml += '</div>';
+    basicStatsHtml += '</div>';
     
-    // ★ iOSのスクロールバグ対策として、overscroll-behavior-y: contain; と touch-action: pan-y; と position: relative; z-index: 1; を追加 ★
+    // 折りたたみ要素（アコーディオン）を作成する関数
+    const createDetails = (title, content, isOpen = false) => {
+        if (!content || !content.trim()) return '';
+        return `
+        <details ${isOpen ? 'open' : ''} style="margin-bottom: 8px; border: 2px solid #222; border-radius: 5px; background: #fff; overflow: hidden;">
+            <summary style="background: #e8e8e8; color: #222; padding: 10px; font-weight: bold; cursor: pointer; font-size: 14px; outline: none; border-bottom: 1px solid #ccc; position: relative;">
+                ${title}
+            </summary>
+            <div style="padding: 10px; background: #fafafa;">
+                ${content}
+            </div>
+        </details>`;
+    };
+
+    let detailsHtml = "";
+    detailsHtml += createDetails("図鑑説明", descHtml, true); // 説明は最初から開いておく
+    detailsHtml += createDetails("基本情報・種族値", basicStatsHtml, false);
+    detailsHtml += createDetails("レベルアップで覚えるわざ", movesData["レベルアップで覚えるわざ"], false);
+    detailsHtml += createDetails("覚えるわざマシン・ひでんマシン", movesData["覚えるわざマシン・ひでんマシン"], false);
+    detailsHtml += createDetails("タマゴわざ", movesData["タマゴわざ"], false);
+    detailsHtml += createDetails("教えてもらえるわざ", movesData["教えてもらえるわざ"], false);
+
     return `
     <div class="data-card" style="display:flex; flex-direction:column; box-shadow: 2px 2px 5px rgba(0,0,0,0.5);">
         <div class="data-card-header" style="display:flex; justify-content:space-between; background: #222; color: #fff; padding: 10px;">
             <span>No.${poke.no} ${poke.name}</span>
             <span style="font-size:10px; opacity: 0.8;">DB抽出完了</span>
         </div>
-        <div style="display:flex; flex-wrap:wrap; padding:15px; background:radial-gradient(circle, #fff 0%, #f0f0f0 100%); gap:15px; border-bottom:2px solid #222;">
-            <div style="flex: 0 0 120px; display:flex; justify-content:center; align-items:center;">
-                <img src="${imgUrl}" style="width:120px; height:120px; object-fit:contain; filter:drop-shadow(2px 4px 4px rgba(0,0,0,0.3));">
-            </div>
-            <div style="flex: 1; min-width:180px; align-self: center;">
-                ${descHtml}
-            </div>
+        <div style="display:flex; justify-content:center; align-items:center; padding:15px; background:radial-gradient(circle, #fff 0%, #f0f0f0 100%); border-bottom:2px solid #222;">
+            <img src="${imgUrl}" style="width:120px; height:120px; object-fit:contain; filter:drop-shadow(2px 4px 4px rgba(0,0,0,0.3));">
         </div>
-        <div style="padding:15px; max-height:450px; overflow-y:auto; overscroll-behavior-y: contain; touch-action: pan-y; -webkit-overflow-scrolling: touch; position: relative; z-index: 1; background:#fafafa; border-bottom-left-radius: 5px; border-bottom-right-radius: 5px;">
-            ${statsHtml}
-            ${movesHtml}
+        <div style="padding:10px; background:#d3d3d3; border-bottom-left-radius: 5px; border-bottom-right-radius: 5px;">
+            ${detailsHtml}
         </div>
     </div>`;
 }
