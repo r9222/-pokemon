@@ -56,7 +56,6 @@ function updateToggleText() {
     ttsText.style.background = isTTSEnabled ? "#e8f5e9" : "#fff";
 }
 
-// ★修正点2：漢字の誤変換対策を追加
 function fixVoiceInput(text) {
     return text.replace(/人影/g, "ヒトカゲ")
                .replace(/不思議だね|ふしぎだね/g, "フシギダネ")
@@ -308,7 +307,7 @@ function createBeautifulCard(poke) {
     }
     statsHtml += '</div>';
     
-    // ★修正点1：iOSのスクロールバグ対策 (-webkit-overflow-scrolling: touch; を追加)
+    // ★ iOSのスクロールバグ対策として、overscroll-behavior-y: contain; と touch-action: pan-y; と position: relative; z-index: 1; を追加 ★
     return `
     <div class="data-card" style="display:flex; flex-direction:column; box-shadow: 2px 2px 5px rgba(0,0,0,0.5);">
         <div class="data-card-header" style="display:flex; justify-content:space-between; background: #222; color: #fff; padding: 10px;">
@@ -323,7 +322,7 @@ function createBeautifulCard(poke) {
                 ${descHtml}
             </div>
         </div>
-        <div style="padding:15px; max-height:450px; overflow-y:auto; -webkit-overflow-scrolling: touch; background:#fafafa; border-bottom-left-radius: 5px; border-bottom-right-radius: 5px;">
+        <div style="padding:15px; max-height:450px; overflow-y:auto; overscroll-behavior-y: contain; touch-action: pan-y; -webkit-overflow-scrolling: touch; position: relative; z-index: 1; background:#fafafa; border-bottom-left-radius: 5px; border-bottom-right-radius: 5px;">
             ${statsHtml}
             ${movesHtml}
         </div>
@@ -377,21 +376,17 @@ async function askPokemonAI() {
 
     const chatBox = document.getElementById('chat-messages');
     
-    // ★修正点3：ユーザーの吹き出しにIDをつけて、あとでスクロールの基準にする
     const userMsgId = "msg-" + Date.now();
     chatBox.innerHTML += `<div id="${userMsgId}" class="msg user"><div class="text">${rawText}</div></div>`;
     inputEl.value = '';
     
-    // 1. まずポケモンの名前が含まれているか探す
     const directMatches = findPokemon(rawText);
     let moveInfo = null;
 
-    // 2. ポケモンの名前がなければ、「技の名前」が含まれているか探す
     if (directMatches.length === 0) {
         moveInfo = searchMoveInfo(rawText);
     }
     
-    // ⚡ 【AI：OFFモード】 ⚡
     if (!isAiMode) {
         seReceive.play().catch(e => {});
         if (directMatches.length > 0) {
@@ -405,7 +400,6 @@ async function askPokemonAI() {
             chatBox.innerHTML += `<div class="data-card" style="padding:15px; color:#e74c3c;">データが見つからなかったたま…</div>`;
         }
         
-        // ★修正点3：画面の一番下へのワープをやめて、自分の発言位置へ「なめらかに」スクロールさせる！
         setTimeout(() => {
             const userMsgEl = document.getElementById(userMsgId);
             if (userMsgEl) {
@@ -419,11 +413,9 @@ async function askPokemonAI() {
         return; 
     }
 
-    // 💬 【AI：ONモード】 💬
     const loadingId = "L-" + Date.now();
     chatBox.innerHTML += `<div id="${loadingId}" class="msg bot"><img src="tamachan.png" class="avatar"><div class="text">解析中だたま...🔍</div></div>`;
     
-    // ロード中も自分の発言が基準になるようにスクロール
     setTimeout(() => {
         const userMsgEl = document.getElementById(userMsgId);
         if (userMsgEl) {
@@ -462,7 +454,6 @@ async function askPokemonAI() {
                 <div class="text">${linkify(reply)}</div>
             </div>`;
             
-        // ★修正点3：回答が返ってきた後も、自分の発言位置が見えるようにスッとスクロール
         setTimeout(() => {
             const userMsgEl = document.getElementById(userMsgId);
             if (userMsgEl) {
