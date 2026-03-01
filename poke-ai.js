@@ -56,6 +56,7 @@ function updateToggleText() {
     ttsText.style.background = isTTSEnabled ? "#e8f5e9" : "#fff";
 }
 
+// ★修正点2：漢字の誤変換対策を追加
 function fixVoiceInput(text) {
     return text.replace(/人影/g, "ヒトカゲ")
                .replace(/不思議だね|ふしぎだね/g, "フシギダネ")
@@ -109,7 +110,6 @@ function findPokemon(userText) {
     return matches;
 }
 
-// ▼▼▼ 追加：全データから「すべての技名」を抽出する機能 ▼▼▼
 let ALL_MOVES_CACHE = null;
 function extractAllMoves() {
     if (ALL_MOVES_CACHE) return ALL_MOVES_CACHE;
@@ -120,26 +120,22 @@ function extractAllMoves() {
         for (let i = 0; i < lines.length; i++) {
             if (typesList.includes(lines[i]) && i > 0 && i + 4 < lines.length) {
                 let moveName = lines[i-1];
-                // 短すぎる文字や空白を含むものは除外
                 if(moveName.length >= 2 && !moveName.includes(" ") && !moveName.includes("レベル")) {
                     moves.add(moveName);
                 }
             }
         }
     }
-    // 文字数が長い技名から順番に探すようにソート（誤爆防止）
     ALL_MOVES_CACHE = Array.from(moves).sort((a,b) => b.length - a.length);
     return ALL_MOVES_CACHE;
 }
 
-// ▼▼▼ 追加：「文章の中」から技名を探し出し、データベースを横断検索する神機能 ▼▼▼
 function searchMoveInfo(userText) {
     if (typeof POKE_DB === 'undefined') return null;
     
     const allMoves = extractAllMoves();
     let targetMove = null;
     
-    // ユーザーの入力テキストの中に、技名が含まれているかチェック！
     for (const m of allMoves) {
         if (userText.includes(m)) {
             targetMove = m;
@@ -147,13 +143,12 @@ function searchMoveInfo(userText) {
         }
     }
 
-    if (!targetMove) return null; // 技名が含まれていなければ終了
+    if (!targetMove) return null; 
 
     let moveData = null;
     let learningPokemons = [];
     const typesList = ["ノーマル","ほのお","みず","でんき","くさ","こおり","かくとう","どく","じめん","ひこう","エスパー","むし","いわ","ゴースト","ドラゴン","はがね","あく","？？？"];
     
-    // 技名が見つかったら、図鑑151匹のデータを全スキャンして情報をかき集める！
     for (const poke of POKE_DB) {
         const lines = poke.info.split('\n').map(l => l.trim());
         let idx = lines.indexOf(targetMove);
@@ -161,7 +156,7 @@ function searchMoveInfo(userText) {
         if (idx !== -1 && idx + 5 < lines.length) {
             const type = lines[idx+1];
             if (typesList.includes(type)) {
-                if (!moveData) { // 最初の1回だけ威力や効果を保存
+                if (!moveData) { 
                     moveData = {
                         name: targetMove,
                         type: type,
@@ -171,13 +166,12 @@ function searchMoveInfo(userText) {
                         effect: lines[idx+5]
                     };
                 }
-                learningPokemons.push(poke.name); // この技を覚えるポケモンをリストに追加
+                learningPokemons.push(poke.name); 
             }
         }
     }
     
     if (moveData) {
-        // 重複を消して、代表的なポケモンをピックアップ
         const uniquePokemons = [...new Set(learningPokemons)];
         return `【技データ】\n技名: ${moveData.name}\nタイプ: ${moveData.type}\n威力: ${moveData.power}\n命中: ${moveData.acc}\nPP: ${moveData.pp}\n効果: ${moveData.effect}\n\n【この技を覚える代表的なポケモン】\n${uniquePokemons.slice(0, 10).join("、")} など`;
     }
@@ -314,6 +308,7 @@ function createBeautifulCard(poke) {
     }
     statsHtml += '</div>';
     
+    // ★修正点1：iOSのスクロールバグ対策 (-webkit-overflow-scrolling: touch; を追加)
     return `
     <div class="data-card" style="display:flex; flex-direction:column; box-shadow: 2px 2px 5px rgba(0,0,0,0.5);">
         <div class="data-card-header" style="display:flex; justify-content:space-between; background: #222; color: #fff; padding: 10px;">
@@ -328,7 +323,7 @@ function createBeautifulCard(poke) {
                 ${descHtml}
             </div>
         </div>
-        <div style="padding:15px; max-height:450px; overflow-y:auto; background:#fafafa; border-bottom-left-radius: 5px; border-bottom-right-radius: 5px;">
+        <div style="padding:15px; max-height:450px; overflow-y:auto; -webkit-overflow-scrolling: touch; background:#fafafa; border-bottom-left-radius: 5px; border-bottom-right-radius: 5px;">
             ${statsHtml}
             ${movesHtml}
         </div>
@@ -382,7 +377,7 @@ async function askPokemonAI() {
 
     const chatBox = document.getElementById('chat-messages');
     
-    // ★ ユーザーの吹き出しにIDをつけて、あとでスクロールの基準にする
+    // ★修正点3：ユーザーの吹き出しにIDをつけて、あとでスクロールの基準にする
     const userMsgId = "msg-" + Date.now();
     chatBox.innerHTML += `<div id="${userMsgId}" class="msg user"><div class="text">${rawText}</div></div>`;
     inputEl.value = '';
@@ -402,7 +397,6 @@ async function askPokemonAI() {
         if (directMatches.length > 0) {
             directMatches.forEach(p => { chatBox.innerHTML += createBeautifulCard(p); });
         } else if (moveInfo) {
-            // 技の情報を引いた場合、画面に「簡易技カード」を表示する！
             chatBox.innerHTML += `
             <div class="data-card" style="background:#fff; border-left:5px solid #f1c40f; padding:15px; font-size:13px; line-height:1.6; color:#222;">
                 ${moveInfo.replace(/\n/g, '<br>')}
@@ -411,7 +405,7 @@ async function askPokemonAI() {
             chatBox.innerHTML += `<div class="data-card" style="padding:15px; color:#e74c3c;">データが見つからなかったたま…</div>`;
         }
         
-        // ★ 画面の一番下へのワープをやめて、自分の発言位置へ「なめらかに」スクロールさせる！
+        // ★修正点3：画面の一番下へのワープをやめて、自分の発言位置へ「なめらかに」スクロールさせる！
         setTimeout(() => {
             const userMsgEl = document.getElementById(userMsgId);
             if (userMsgEl) {
@@ -442,7 +436,6 @@ async function askPokemonAI() {
 
     let cheatSheet = "";
     
-    // ★ カンペの作成（ポケモンが見つかったらポケモンのデータ、技が見つかったら技のデータ）
     if (directMatches.length > 0) {
         cheatSheet = directMatches.map(p => `【${p.name}】\n${formatInfoForAI(p.info)}`).join("\n\n");
         lastCheatSheet = cheatSheet;
@@ -453,7 +446,6 @@ async function askPokemonAI() {
         cheatSheet = lastCheatSheet; 
     }
 
-    // ★ 邪魔だった「絶対命令プロンプト」を完全に削除！RickunのSYSTEM_PROMPTにすべてを託す！
     const basePrompt = typeof SYSTEM_PROMPT !== 'undefined' ? SYSTEM_PROMPT : "あなたはポケモンガチ勢のたまちゃんです。語尾は「だたま」です。";
     const fullPrompt = `${basePrompt}\n\n=== カンペ ===\n${cheatSheet || "データが見つからないたま！"}\n\n=== 質問 ===\n${rawText}`;
 
@@ -470,7 +462,7 @@ async function askPokemonAI() {
                 <div class="text">${linkify(reply)}</div>
             </div>`;
             
-        // ★ 回答が返ってきた後も、自分の発言位置が見えるようにスッとスクロール
+        // ★修正点3：回答が返ってきた後も、自分の発言位置が見えるようにスッとスクロール
         setTimeout(() => {
             const userMsgEl = document.getElementById(userMsgId);
             if (userMsgEl) {
