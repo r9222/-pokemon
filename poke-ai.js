@@ -231,6 +231,86 @@ function searchMoveInfo(userText) {
     return null;
 }
 
+// 技名から、その技を覚えるポケモンのうち合計種族値が高い順に最大3匹を抽出する（わざマシン用）
+function searchMoveInfoForTM(userText) {
+    if (typeof POKE_DB === 'undefined') return null;
+
+    const allMoves = extractAllMoves();
+    let targetMove = null;
+
+    for (const m of allMoves) {
+        if (userText.includes(m)) {
+            targetMove = m;
+            break;
+        }
+    }
+
+    if (!targetMove) return null;
+
+    let moveData = null;
+    let learnerCandidates = []; // { name: string, totalStats: number }
+
+    const typesList = ["ノーマル", "ほのお", "みず", "でんき", "くさ", "こおり", "かくとう", "どく", "じめん", "ひこう", "エスパー", "むし", "いわ", "ゴースト", "ドラゴン", "はがね", "あく", "？？？"];
+
+    for (const poke of POKE_DB) {
+        const lines = poke.info.split('\n').map(l => l.trim());
+        let canLearn = false;
+        let totalStats = 0;
+        let currentSection = "";
+
+        for (let i = 0; i < lines.length; i++) {
+            let l = lines[i];
+
+            // 種族値の計算
+            if (l === "種族値") currentSection = "stats";
+            if (currentSection === "stats" && ["HP", "こうげき", "ぼうぎょ", "とくこう", "とくぼう", "すばやさ"].includes(l) && i + 1 < lines.length) {
+                totalStats += parseInt(lines[i + 1]) || 0;
+            }
+
+            // 技を覚えるかどうかの判定
+            if (["レベルアップで覚えるわざ", "覚えるわざマシン・ひでんマシン", "タマゴわざ", "教えてもらえるわざ"].includes(l)) currentSection = "moves";
+
+            if (currentSection === "moves" && l === targetMove) {
+                canLearn = true;
+                // 技データの取得（まだ取得していない場合）
+                if (!moveData && i + 5 < lines.length) {
+                    const type = lines[i + 1];
+                    if (typesList.includes(type)) {
+                        moveData = {
+                            name: targetMove,
+                            type: type,
+                            power: lines[i + 2],
+                            acc: lines[i + 3],
+                            pp: lines[i + 4],
+                            effect: lines[i + 5]
+                        };
+                    }
+                }
+            }
+        }
+
+        if (canLearn) {
+            learnerCandidates.push({ name: poke.name, totalStats: totalStats });
+        }
+    }
+
+    if (moveData) {
+        let text = `【技データ】\n技名: ${moveData.name}\nタイプ: ${moveData.type}\n威力: ${moveData.power}\n命中: ${moveData.acc}\nPP: ${moveData.pp}\n効果: ${moveData.effect}\n\n`;
+
+        learnerCandidates.sort((a, b) => b.totalStats - a.totalStats);
+        const top3 = learnerCandidates.slice(0, 3).map(p => p.name);
+
+        if (top3.length > 0) {
+            text += `【この技を覚えるおすすめポケモン（種族値上位3匹まで）】\n${top3.join("、")}\n`;
+        } else {
+            text += `【この技を覚えるおすすめポケモン】\n特になし\n`;
+        }
+        return text.trim();
+    }
+    return null;
+}
+
+
 function formatInfoForAI(infoText) {
     const lines = infoText.split('\n').map(l => l.trim()).filter(l => l !== "");
     let cleanText = "";
@@ -469,7 +549,8 @@ async function askPokemonAI() {
     if (directMatches.length === 0) {
         machineInfo = findMachine(rawText);
         if (machineInfo) {
-            moveInfo = searchMoveInfo(machineInfo.name.split(" ").pop());
+            // わざマシンの場合は、全リストではなく上位3匹だけの情報を取得する
+            moveInfo = searchMoveInfoForTM(machineInfo.name.split(" ").pop());
         } else {
             moveInfo = searchMoveInfo(rawText);
         }
