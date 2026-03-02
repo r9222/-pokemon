@@ -109,6 +109,19 @@ function findPokemon(userText) {
     return matches;
 }
 
+function findItemOrMachine(userText) {
+    if (typeof ITEM_DB === 'undefined') return null;
+    let searchTarget = userText;
+
+    const sortedItems = [...ITEM_DB].sort((a, b) => b.name.length - a.name.length);
+    for (const item of sortedItems) {
+        if (searchTarget.includes(item.name)) {
+            return item;
+        }
+    }
+    return null;
+}
+
 let ALL_MOVES_CACHE = null;
 function extractAllMoves() {
     if (ALL_MOVES_CACHE) return ALL_MOVES_CACHE;
@@ -433,9 +446,13 @@ async function askPokemonAI() {
 
     const directMatches = findPokemon(rawText);
     let moveInfo = null;
+    let itemInfo = null;
 
     if (directMatches.length === 0) {
         moveInfo = searchMoveInfo(rawText);
+        if (!moveInfo) {
+            itemInfo = findItemOrMachine(rawText);
+        }
     }
 
     if (!isAiMode) {
@@ -446,6 +463,21 @@ async function askPokemonAI() {
             chatBox.innerHTML += `
             <div class="data-card" style="background:#fff; border-left:5px solid #f1c40f; padding:15px; font-size:13px; line-height:1.6; color:#222;">
                 ${moveInfo.replace(/\n/g, '<br>')}
+            </div>`;
+        } else if (itemInfo) {
+            chatBox.innerHTML += `
+            <div class="data-card" style="background:#fff; border-left:5px solid #e74c3c; padding:15px; font-size:13px; line-height:1.6; color:#222; box-shadow: 2px 2px 5px rgba(0,0,0,0.5);">
+                <div style="font-size:15px; font-weight:bold; color:#c0392b; border-bottom:2px solid #ddd; padding-bottom:6px; margin-bottom:8px; display:flex; align-items:center;">
+                    <span style="margin-right:8px;">🎒</span>${itemInfo.name}
+                </div>
+                <div style="margin-bottom:8px; background:#f9f9f9; padding:8px; border-radius:5px; border-left:3px solid #f39c12;">
+                    <strong style="color:#e67e22; font-size:11px; display:block; margin-bottom:4px;">▶ 効果</strong>
+                    <div style="font-size:12px; color:#333;">${itemInfo.effect || 'データなし'}</div>
+                </div>
+                <div style="background:#f0f8ff; padding:8px; border-radius:5px; border-left:3px solid #3498db;">
+                    <strong style="color:#2980b9; font-size:11px; display:block; margin-bottom:4px;">▶ 入手方法</strong>
+                    <div style="font-size:12px; color:#333;">${itemInfo.location || 'データなし'}</div>
+                </div>
             </div>`;
         } else {
             chatBox.innerHTML += `<div class="data-card" style="padding:15px; color:#e74c3c;">データが見つからなかったたま…</div>`;
@@ -484,6 +516,9 @@ async function askPokemonAI() {
         lastCheatSheet = cheatSheet;
     } else if (moveInfo) {
         cheatSheet = moveInfo;
+        lastCheatSheet = cheatSheet;
+    } else if (itemInfo) {
+        cheatSheet = `【アイテムデータ】\n名前: ${itemInfo.name}\n効果: ${itemInfo.effect}\n入手方法: ${itemInfo.location || "不明"}`;
         lastCheatSheet = cheatSheet;
     } else {
         cheatSheet = "【システム通知】該当するデータがデータベース(DB)に見つかりませんでした。ユーザーが尋ねている対象はデータベース外のアイテムやマイナーな用語である可能性が高いです。無理に知識で答えず、必ずプロンプトの【Step 3】に従って検索トリガー「[UNKNOWN] 検索キーワード」を出力してください。";
