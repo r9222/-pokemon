@@ -691,6 +691,11 @@ async function askPokemonAI() {
         const data = await res.json();
         let reply = data.candidates[0].content.parts[0].text;
 
+        if (reply.includes("[UNKNOWN]")) {
+            let query = reply.replace("[UNKNOWN]", "").trim();
+            reply = `ごめんたま！その詳しい情報はデータベースになかったたま！💦<br>👇ここから徹底攻略サイトで検索してみてほしいたま！<br><div style="text-align:center;"><a href="https://www.google.com/search?q=${encodeURIComponent(query)}" target="_blank" style="display:inline-block; margin-top:10px; padding:10px 15px; background:#e74c3c; color:#fff; text-decoration:none; border-radius:8px; font-weight:bold; box-shadow:0 4px 6px rgba(0,0,0,0.2);">🔍 ネットで検索する</a></div>`;
+        }
+
         document.getElementById(loadingId).remove();
 
         chatBox.innerHTML += `
