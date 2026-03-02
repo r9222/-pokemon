@@ -568,7 +568,13 @@ async function askPokemonAI() {
                 effectText = `${effMatch[4]} (威力:${effMatch[1]} / 命中:${effMatch[2]} / PP:${effMatch[3]})`;
             }
         }
-        cheatSheet = `【わざマシンデータ】\n技マシン名: ${machineInfo.name}\n効果: ${effectText}\n入手場所: ${machineInfo.location || "不明"}`;
+        let tmSection = `【わざマシンデータ】\n技マシン名: ${machineInfo.name}\n効果: ${effectText}\n入手場所: ${machineInfo.location || "不明"}`;
+
+        if (moveInfo) {
+            cheatSheet = `${tmSection}\n\n${moveInfo}`;
+        } else {
+            cheatSheet = tmSection;
+        }
         lastCheatSheet = cheatSheet;
     } else if (moveInfo) {
         cheatSheet = moveInfo;
