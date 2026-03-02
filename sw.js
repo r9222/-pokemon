@@ -1,6 +1,6 @@
 // sw.js
 // ⚠️ここを変えると全ユーザーのスマホで「アップデートしろ！」という強制命令が出ます
-const CACHE_NAME = 'tama-navi-v4.0';
+const CACHE_NAME = 'tama-navi-v4.1';
 
 const ASSETS = [
     './',

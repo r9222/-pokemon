@@ -89,7 +89,11 @@ function fixVoiceInput(text) {
         .replace(/嫌な音/g, "いやなおと")
         .replace(/日本晴れ/g, "にほんばれ")
         .replace(/雨乞い/g, "あまごい")
-        .replace(/自己暗示/g, "じこあんじ");
+        .replace(/自己暗示/g, "じこあんじ")
+        .replace(/食べ残し|タベノコシ/g, "たべのこし")
+        .replace(/自転車|ジテンシャ/g, "じてんしゃ")
+        .replace(/学習装置/g, "がくしゅうそうち")
+        .replace(/技マシン/g, "わざマシン");
 }
 
 function findPokemon(userText) {
