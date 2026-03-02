@@ -122,6 +122,23 @@ function findItemOrMachine(userText) {
     return null;
 }
 
+function findMachine(userText) {
+    if (typeof MACHINE_DB === 'undefined') return null;
+    let searchTarget = userText;
+
+    const sortedMachines = [...MACHINE_DB].sort((a, b) => b.name.length - a.name.length);
+    for (const m of sortedMachines) {
+        const parts = m.name.split(" ");
+        const tmName = parts[0];
+        const moveName = parts.length > 1 ? parts[1] : "";
+
+        if (searchTarget.includes(m.name) || searchTarget.includes(tmName) || (moveName && searchTarget.includes(moveName))) {
+            return m;
+        }
+    }
+    return null;
+}
+
 let ALL_MOVES_CACHE = null;
 function extractAllMoves() {
     if (ALL_MOVES_CACHE) return ALL_MOVES_CACHE;
@@ -447,10 +464,17 @@ async function askPokemonAI() {
     const directMatches = findPokemon(rawText);
     let moveInfo = null;
     let itemInfo = null;
+    let machineInfo = null;
 
     if (directMatches.length === 0) {
-        moveInfo = searchMoveInfo(rawText);
-        if (!moveInfo) {
+        machineInfo = findMachine(rawText);
+        if (machineInfo) {
+            moveInfo = searchMoveInfo(machineInfo.name.split(" ").pop());
+        } else {
+            moveInfo = searchMoveInfo(rawText);
+        }
+
+        if (!machineInfo && !moveInfo) {
             itemInfo = findItemOrMachine(rawText);
         }
     }
@@ -459,6 +483,28 @@ async function askPokemonAI() {
         seReceive.play().catch(e => { });
         if (directMatches.length > 0) {
             directMatches.forEach(p => { chatBox.innerHTML += createBeautifulCard(p); });
+        } else if (machineInfo) {
+            let effectStr = machineInfo.effect || 'データなし';
+            if (moveInfo) {
+                const effMatch = moveInfo.match(/威力: (.*?)\n命中: (.*?)\nPP: (.*?)\n効果: (.*?)\n/);
+                if (effMatch) {
+                    effectStr = `${effMatch[4]} <br><span style="color:#e74c3c; font-size:11px;">(威力:${effMatch[1]} / 命中:${effMatch[2]} / PP:${effMatch[3]})</span>`;
+                }
+            }
+            chatBox.innerHTML += `
+            <div class="data-card" style="background:#fff; border-left:5px solid #8e44ad; padding:15px; font-size:13px; line-height:1.6; color:#222; box-shadow: 2px 2px 5px rgba(0,0,0,0.5);">
+                <div style="font-size:15px; font-weight:bold; color:#8e44ad; border-bottom:2px solid #ddd; padding-bottom:6px; margin-bottom:8px; display:flex; align-items:center;">
+                    <span style="margin-right:8px;">💿</span>${machineInfo.name}
+                </div>
+                <div style="margin-bottom:8px; background:#f9f9f9; padding:8px; border-radius:5px; border-left:3px solid #8e44ad;">
+                    <strong style="color:#8e44ad; font-size:11px; display:block; margin-bottom:4px;">▶ 技の効果・威力</strong>
+                    <div style="font-size:12px; color:#333;">${effectStr}</div>
+                </div>
+                <div style="background:#f0f8ff; padding:8px; border-radius:5px; border-left:3px solid #3498db;">
+                    <strong style="color:#2980b9; font-size:11px; display:block; margin-bottom:4px;">▶ 入手場所・方法</strong>
+                    <div style="font-size:12px; color:#333;">${machineInfo.location || 'データなし'}</div>
+                </div>
+            </div>`;
         } else if (moveInfo) {
             chatBox.innerHTML += `
             <div class="data-card" style="background:#fff; border-left:5px solid #f1c40f; padding:15px; font-size:13px; line-height:1.6; color:#222;">
@@ -513,6 +559,16 @@ async function askPokemonAI() {
 
     if (directMatches.length > 0) {
         cheatSheet = directMatches.map(p => `【${p.name}】\n${formatInfoForAI(p.info)}`).join("\n\n");
+        lastCheatSheet = cheatSheet;
+    } else if (machineInfo) {
+        let effectText = machineInfo.effect || "データなし";
+        if (moveInfo) {
+            const effMatch = moveInfo.match(/威力: (.*?)\n命中: (.*?)\nPP: (.*?)\n効果: (.*?)\n/);
+            if (effMatch) {
+                effectText = `${effMatch[4]} (威力:${effMatch[1]} / 命中:${effMatch[2]} / PP:${effMatch[3]})`;
+            }
+        }
+        cheatSheet = `【わざマシンデータ】\n技マシン名: ${machineInfo.name}\n効果: ${effectText}\n入手場所: ${machineInfo.location || "不明"}`;
         lastCheatSheet = cheatSheet;
     } else if (moveInfo) {
         cheatSheet = moveInfo;
