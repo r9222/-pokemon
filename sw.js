@@ -1,18 +1,20 @@
 // sw.js
 // ⚠️ここを変えると全ユーザーのスマホで「アップデートしろ！」という強制命令が出ます
-const CACHE_NAME = 'tama-navi-v3.1'; 
+const CACHE_NAME = 'tama-navi-v4.0';
 
 const ASSETS = [
     './',
     './index.html',
     './poke-ai.js',
     './pokemon-db.js',
-    './poke-tamachan-data.js'
+    './poke-tamachan-data.js',
+    './item-db.js',
+    './machine-db.js'
 ];
 
 self.addEventListener('install', (e) => {
     // ★新しいsw.jsが届いたら、順番待ちを無視して「即・強制インストール」する魔法
-    self.skipWaiting(); 
+    self.skipWaiting();
     e.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS)));
 });
 
@@ -45,7 +47,7 @@ self.addEventListener('fetch', (e) => {
                 return response;
             })
             // 機内モードなど、完全に電波がない時だけ仕方なくキャッシュを使う
-            .catch(() => caches.match(e.request)) 
+            .catch(() => caches.match(e.request))
     );
 });
 

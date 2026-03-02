@@ -126,11 +126,23 @@ function findMachine(userText) {
     if (typeof MACHINE_DB === 'undefined') return null;
     let searchTarget = userText;
 
+    const queryTmMatch = searchTarget.match(/(わざマシン|ひでんマシン)0*(\d+)/);
+    let queriedType = null;
+    let queriedNumStr = null;
+    if (queryTmMatch) {
+        queriedType = queryTmMatch[1];
+        queriedNumStr = queryTmMatch[2].padStart(3, '0');
+    }
+
     const sortedMachines = [...MACHINE_DB].sort((a, b) => b.name.length - a.name.length);
     for (const m of sortedMachines) {
         const parts = m.name.split(" ");
         const tmName = parts[0];
         const moveName = parts.length > 1 ? parts[1] : "";
+
+        if (queriedType && queriedNumStr) {
+            if (tmName.includes(queriedType + queriedNumStr)) return m;
+        }
 
         if (searchTarget.includes(m.name) || searchTarget.includes(tmName) || (moveName && searchTarget.includes(moveName))) {
             return m;
